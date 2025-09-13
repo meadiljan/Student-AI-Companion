@@ -21,13 +21,13 @@ import { ChevronDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 const data = [
-  { day: "S", hoursSpent: 1.8, maxHours: 8 },
-  { day: "M", hoursSpent: 4.5, maxHours: 8 },
-  { day: "T", hoursSpent: 3.0, maxHours: 8 },
-  { day: "W", hoursSpent: 4.2, maxHours: 8 },
-  { day: "T", hoursSpent: 7.0, maxHours: 8 },
-  { day: "F", hoursSpent: 3.5, maxHours: 8 },
-  { day: "S", hoursSpent: 3.2, maxHours: 8 },
+  { day: "S", hoursSpent: 1.8 },
+  { day: "M", hoursSpent: 4.5 },
+  { day: "T", hoursSpent: 3.0 },
+  { day: "W", hoursSpent: 4.2 },
+  { day: "T", hoursSpent: 7.0 },
+  { day: "F", hoursSpent: 3.5 },
+  { day: "S", hoursSpent: 3.2 },
 ];
 
 const ActiveHoursHistogram = () => {
@@ -64,7 +64,7 @@ const ActiveHoursHistogram = () => {
                 left: -20,
                 bottom: 0,
               }}
-              barCategoryGap="20%"
+              barCategoryGap="20%" // Adjust gap between bars
             >
               <XAxis
                 dataKey="day"
@@ -73,12 +73,13 @@ const ActiveHoursHistogram = () => {
                 className="text-xs text-muted-foreground"
               />
               <YAxis
-                domain={[0, 8]}
+                domain={[0, 10]} // Set domain up to 10 hours
                 tickFormatter={(value) => `${value}h`}
                 axisLine={false}
                 tickLine={false}
                 className="text-xs text-muted-foreground"
                 width={30}
+                ticks={[0, 2, 4, 6, 8, 10]} // Explicitly set ticks for 0h, 2h, 4h, 6h, 8h, 10h
               />
               <Tooltip
                 cursor={{ fill: "transparent" }}
@@ -89,25 +90,13 @@ const ActiveHoursHistogram = () => {
                 }}
                 labelStyle={{ color: "hsl(var(--foreground))" }}
                 itemStyle={{ color: "hsl(var(--foreground))" }}
-                formatter={(value: number, name: string, props: any) => {
-                  if (name === "hoursSpent") {
-                    return [`${value}h`, "Hours Spent"];
-                  }
-                  return null;
-                }}
+                formatter={(value: number) => [`${value}h`, "Hours Spent"]}
               />
-              {/* Background bars */}
-              <Bar
-                dataKey="maxHours"
-                fill="hsl(var(--muted))"
-                radius={[4, 4, 0, 0]}
-                isAnimationActive={false}
-              />
-              {/* Actual hours spent bars */}
               <Bar
                 dataKey="hoursSpent"
                 fill="hsl(var(--primary))"
-                radius={[4, 4, 0, 0]}
+                radius={[8, 8, 4, 4]} // Rounded corners for top and slight rounding for bottom
+                barSize={24} // Make bars thicker
               />
             </BarChart>
           </ResponsiveContainer>
