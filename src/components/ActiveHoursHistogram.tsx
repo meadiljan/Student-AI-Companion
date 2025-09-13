@@ -63,7 +63,6 @@ const ActiveHoursHistogram = () => {
                 left: 10,
                 bottom: 0,
               }}
-              // Removed barCategoryGap to allow for equal spacing
             >
               <XAxis
                 dataKey="day"
@@ -78,7 +77,8 @@ const ActiveHoursHistogram = () => {
                 tickLine={false}
                 className="text-xs text-muted-foreground"
                 width={40}
-                ticks={[0, 2, 4, 8]}
+                ticks={[0, 2, 4, 6, 8]}
+                {/* Added 6 to the ticks array */}
               />
               <Tooltip
                 cursor={{ fill: "transparent" }}
