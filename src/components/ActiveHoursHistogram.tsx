@@ -64,7 +64,7 @@ const ActiveHoursHistogram = () => {
                 left: -20,
                 bottom: 0,
               }}
-              barCategoryGap="20%" // Adjust gap between bars
+              barCategoryGap="20%"
             >
               <XAxis
                 dataKey="day"
@@ -73,13 +73,13 @@ const ActiveHoursHistogram = () => {
                 className="text-xs text-muted-foreground"
               />
               <YAxis
-                domain={[0, 10]} // Set domain up to 10 hours
+                domain={[0, 8]} // Set domain up to 8 hours to match ticks
                 tickFormatter={(value) => `${value}h`}
                 axisLine={false}
                 tickLine={false}
                 className="text-xs text-muted-foreground"
                 width={30}
-                ticks={[0, 2, 4, 6, 8, 10]} // Explicitly set ticks for 0h, 2h, 4h, 6h, 8h, 10h
+                ticks={[0, 2, 4, 8]} // Explicitly set ticks for 0h, 2h, 4h, 8h
               />
               <Tooltip
                 cursor={{ fill: "transparent" }}
@@ -95,8 +95,8 @@ const ActiveHoursHistogram = () => {
               <Bar
                 dataKey="hoursSpent"
                 fill="hsl(var(--primary))"
-                radius={[8, 8, 4, 4]} // Rounded corners for top and slight rounding for bottom
-                barSize={24} // Make bars thicker
+                radius={[8, 8, 4, 4]}
+                barSize={24}
               />
             </BarChart>
           </ResponsiveContainer>
