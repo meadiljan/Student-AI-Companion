@@ -2,90 +2,63 @@
 
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import WeekCalendar from "./WeekCalendar";
-import WeeklyEventTimeline from "./WeeklyEventTimeline"; // Import the new component
-import { startOfWeek, setHours, setMinutes, startOfDay, addDays } from "date-fns";
+import { cn } from "@/lib/utils";
+import WeekCalendar from "./WeekCalendar"; // Import the new WeekCalendar
 
 interface Event {
-  id: string;
   date: Date;
-  startTime: Date;
-  endTime: Date;
+  time: string;
   title: string;
-  type: string;
+  type: "Team Meetup" | "Illustration" | "Research" | "Presentation" | "Report";
   color: string;
 }
 
-// Helper to create a Date object with specific time for a given date
-const createDateTime = (baseDate: Date, hour: number, minute: number) => {
-  return setMinutes(setHours(startOfDay(baseDate), hour), minute);
-};
-
-const allEvents: Event[] = [
+const events: Event[] = [
   {
-    id: "1",
-    date: new Date(2025, 1, 17), // Monday, Feb 17
-    startTime: createDateTime(new Date(2025, 1, 17), 9, 30),
-    endTime: createDateTime(new Date(2025, 1, 17), 10, 30),
+    date: new Date(2025, 1, 17), // February 17, 2025
+    time: "9:30 - 10:30",
     title: "Team Meetup",
     type: "Team Meetup",
-    color: "bg-orange-500", // Matching image
+    color: "bg-red-500",
   },
   {
-    id: "2",
-    date: new Date(2025, 1, 18), // Tuesday, Feb 18
-    startTime: createDateTime(new Date(2025, 1, 18), 11, 30),
-    endTime: createDateTime(new Date(2025, 1, 18), 12, 30),
-    title: "Illustration",
+    date: new Date(2025, 1, 18), // February 18, 2025
+    time: "11:30 - 12:30",
+    title: "Illustration Project",
     type: "Illustration",
-    color: "bg-gray-900", // Matching image (black)
+    color: "bg-blue-500",
   },
   {
-    id: "3",
-    date: new Date(2025, 1, 19), // Wednesday, Feb 19
-    startTime: createDateTime(new Date(2025, 1, 19), 10, 0),
-    endTime: createDateTime(new Date(2025, 1, 19), 11, 0),
-    title: "Research",
+    date: new Date(2025, 1, 19), // February 19, 2025
+    time: "14:00 - 15:00",
+    title: "Research Presentation",
     type: "Research",
-    color: "bg-blue-600", // Matching image
+    color: "bg-green-500",
   },
   {
-    id: "4",
-    date: new Date(2025, 1, 20), // Thursday, Feb 20
-    startTime: createDateTime(new Date(2025, 1, 20), 13, 0),
-    endTime: createDateTime(new Date(2025, 1, 20), 14, 0),
-    title: "Presentation",
+    date: new Date(2025, 1, 20), // February 20, 2025
+    time: "10:00 - 11:00",
+    title: "Client Presentation",
     type: "Presentation",
-    color: "bg-orange-500", // Matching image
+    color: "bg-yellow-500",
   },
   {
-    id: "5",
-    date: new Date(2025, 1, 22), // Saturday, Feb 22
-    startTime: createDateTime(new Date(2025, 1, 22), 15, 0),
-    endTime: createDateTime(new Date(2025, 1, 22), 16, 0),
-    title: "Report",
+    date: new Date(2025, 1, 21), // February 21, 2025
+    time: "16:00 - 17:00",
+    title: "Monthly Report",
     type: "Report",
-    color: "bg-green-500", // Matching image
+    color: "bg-purple-500",
   },
 ];
 
 const UpcomingEvents = () => {
-  const [selectedDate, setSelectedDate] = React.useState<Date | undefined>(new Date(2025, 1, 19)); // Initial date for the calendar
+  const [date, setDate] = React.useState<Date | undefined>(new Date(2025, 1, 19)); // Set initial date to Feb 19, 2025
 
-  // Calculate the start of the week for the selected date (Monday)
-  const currentWeekStart = selectedDate
-    ? startOfWeek(selectedDate, { weekStartsOn: 1 })
-    : startOfWeek(new Date(), { weekStartsOn: 1 });
-
-  // Filter events to only show those within the current week displayed by the calendar
-  const eventsForCurrentWeek = React.useMemo(() => {
-    const weekEnd = addDays(currentWeekStart, 6); // Sunday of the current week
-    return allEvents.filter(event =>
-      event.date >= currentWeekStart && event.date <= weekEnd
-    );
-  }, [currentWeekStart]);
-
+  const filteredEvents = events.filter(event =>
+    date && event.date.toDateString() === date.toDateString()
+  );
 
   return (
     <Card className="rounded-xl shadow-sm bg-card h-full flex flex-col">
@@ -93,9 +66,26 @@ const UpcomingEvents = () => {
         <CardTitle className="text-foreground">Upcoming Events</CardTitle>
       </CardHeader>
       <CardContent className="flex-1 flex flex-col p-0">
-        <WeekCalendar selected={selectedDate} onSelect={setSelectedDate} events={allEvents} />
-        <ScrollArea className="flex-1">
-          <WeeklyEventTimeline events={eventsForCurrentWeek} weekStart={currentWeekStart} />
+        <WeekCalendar selected={date} onSelect={setDate} events={events} />
+        <ScrollArea className="flex-1 p-4">
+          {filteredEvents.length > 0 ? (
+            <div className="space-y-3">
+              {filteredEvents.map((event, index) => (
+                <div key={index} className="flex items-center space-x-3">
+                  <div className={cn("h-2 w-2 rounded-full", event.color)} />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{event.title}</p>
+                    <p className="text-xs text-muted-foreground">{event.time}</p>
+                  </div>
+                  <Badge variant="secondary" className="ml-auto text-xs">
+                    {event.type}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-center text-muted-foreground text-sm">No events for this day.</p>
+          )}
         </ScrollArea>
       </CardContent>
     </Card>
