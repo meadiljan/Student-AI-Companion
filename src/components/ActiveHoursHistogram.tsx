@@ -18,7 +18,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { ChevronDown } from "lucide-react";
-// Removed Badge import as it's no longer needed for summary statistics
 
 const data = [
   { day: "S", hoursSpent: 1.8 },
@@ -54,14 +53,14 @@ const ActiveHoursHistogram = () => {
         </DropdownMenu>
       </CardHeader>
       <CardContent className="flex flex-col p-4 pt-0">
-        <div className="h-[200px] w-full"> {/* Changed to w-full */}
+        <div className="h-[200px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={data}
               margin={{
                 top: 20,
                 right: 0,
-                left: -20,
+                left: 10, // Adjusted left margin to give Y-axis more space
                 bottom: 0,
               }}
               barCategoryGap="20%"
@@ -78,7 +77,7 @@ const ActiveHoursHistogram = () => {
                 axisLine={false}
                 tickLine={false}
                 className="text-xs text-muted-foreground"
-                width={30}
+                width={40} // Increased Y-axis width
                 ticks={[0, 2, 4, 8]}
               />
               <Tooltip
@@ -95,13 +94,12 @@ const ActiveHoursHistogram = () => {
               <Bar
                 dataKey="hoursSpent"
                 fill="hsl(var(--primary))"
-                radius={[8, 8, 4, 4]}
-                barSize={24}
+                radius={[8, 8, 0, 0]} // Rounded top corners, flat bottom
+                barSize={32} // Increased bar size for a wider look
               />
             </BarChart>
           </ResponsiveContainer>
         </div>
-        {/* Removed the summary statistics section */}
       </CardContent>
     </Card>
   );
