@@ -1,18 +1,23 @@
+import DashboardHeader from "@/components/DashboardHeader";
+import OverviewCards from "@/components/OverviewCards";
+import UpcomingEvents from "@/components/UpcomingEvents";
+import PerformanceOverview from "@/components/PerformanceOverview";
+import AssignmentsList from "@/components/AssignmentsList";
 import { MadeWithDyad } from "@/components/made-with-dyad";
 
 const Dashboard = () => {
   return (
-    <div className="flex h-full flex-col items-center justify-center p-4">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4 text-foreground">
-          Welcome to UniPal!
-        </h1>
-        <p className="text-xl text-muted-foreground">
-          Your personal AI-powered student assistant.
-        </p>
-        <p className="text-lg text-muted-foreground mt-2">
-          Start by exploring the navigation on the left.
-        </p>
+    <div className="flex h-full flex-col p-4">
+      <DashboardHeader />
+      <OverviewCards />
+      <div className="grid gap-6 lg:grid-cols-3 flex-1 mb-6">
+        <div className="lg:col-span-2 flex flex-col gap-6">
+          <PerformanceOverview />
+          <AssignmentsList />
+        </div>
+        <div className="lg:col-span-1 flex flex-col">
+          <UpcomingEvents />
+        </div>
       </div>
       <MadeWithDyad />
     </div>
