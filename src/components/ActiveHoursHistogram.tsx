@@ -60,10 +60,10 @@ const ActiveHoursHistogram = () => {
               margin={{
                 top: 20,
                 right: 0,
-                left: 10, // Adjusted left margin to give Y-axis more space
+                left: 10,
                 bottom: 0,
               }}
-              barCategoryGap="20%"
+              // Removed barCategoryGap to allow for equal spacing
             >
               <XAxis
                 dataKey="day"
@@ -77,7 +77,7 @@ const ActiveHoursHistogram = () => {
                 axisLine={false}
                 tickLine={false}
                 className="text-xs text-muted-foreground"
-                width={40} // Increased Y-axis width
+                width={40}
                 ticks={[0, 2, 4, 8]}
               />
               <Tooltip
@@ -94,8 +94,8 @@ const ActiveHoursHistogram = () => {
               <Bar
                 dataKey="hoursSpent"
                 fill="hsl(var(--primary))"
-                radius={[8, 8, 0, 0]} // Rounded top corners, flat bottom
-                barSize={32} // Increased bar size for a wider look
+                radius={[8, 8, 0, 0]}
+                barSize={32}
               />
             </BarChart>
           </ResponsiveContainer>
