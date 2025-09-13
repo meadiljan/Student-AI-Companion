@@ -2,10 +2,10 @@
 
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import WeekCalendar from "./WeekCalendar"; // Import the new WeekCalendar
 
 interface Event {
   date: Date;
@@ -66,23 +66,7 @@ const UpcomingEvents = () => {
         <CardTitle className="text-foreground">Upcoming Events</CardTitle>
       </CardHeader>
       <CardContent className="flex-1 flex flex-col p-0">
-        <Calendar
-          mode="single"
-          selected={date}
-          onSelect={setDate}
-          className="rounded-md border-b p-2 mx-auto"
-          initialFocus
-          modifiers={{
-            hasEvent: (day) => events.some(event => event.date.toDateString() === day.toDateString()),
-          }}
-          modifiersStyles={{
-            hasEvent: {
-              fontWeight: 'bold',
-              backgroundColor: 'var(--accent)', // Highlight days with events
-              borderRadius: '0.5rem',
-            },
-          }}
-        />
+        <WeekCalendar selected={date} onSelect={setDate} events={events} />
         <ScrollArea className="flex-1 p-4">
           {filteredEvents.length > 0 ? (
             <div className="space-y-3">

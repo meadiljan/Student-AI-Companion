@@ -31,7 +31,7 @@ const OverviewCard: React.FC<OverviewCardProps> = ({
     <CardContent>
       <div className="text-2xl font-bold text-foreground">{value}</div>
       {progress !== undefined && (
-        <Progress value={progress} className="h-2 mt-2" indicatorClassName={colorClass} />
+        <Progress value={progress} className={cn("h-2 mt-2", colorClass)} />
       )}
     </CardContent>
   </Card>
