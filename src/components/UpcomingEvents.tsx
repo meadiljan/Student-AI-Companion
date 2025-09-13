@@ -76,8 +76,8 @@ const events: Event[] = [
   },
 ];
 
-const timelineStartHour = 7; // 7 AM
-const timelineEndHour = 22; // 10 PM (exclusive, so up to 21:59)
+const timelineStartHour = 8; // Changed from 7 AM to 8 AM
+const timelineEndHour = 18; // Changed from 10 PM to 6 PM (exclusive, so up to 17:59)
 const totalTimelineHours = timelineEndHour - timelineStartHour;
 const hourHeightPx = 64; // Height of each hour slot in pixels
 
@@ -158,19 +158,23 @@ const UpcomingEvents = () => {
               const top = (startMinutesFromTimelineStart / 60) * hourHeightPx;
               const height = (durationMinutes / 60) * hourHeightPx;
 
-              return (
-                <div
-                  key={event.id}
-                  className={cn(
-                    "absolute left-[4.5rem] right-0 rounded-md p-2 text-xs text-white overflow-hidden",
-                    event.color,
-                  )}
-                  style={{ top: `${top}px`, height: `${height}px` }}
-                >
-                  <p className="font-medium">{event.title}</p>
-                  <p className="text-[0.65rem] opacity-90">{format(event.start, "h:mm a")} - {format(event.end, "h:mm a")}</p>
-                </div>
-              );
+              // Only render if the event is within the visible timeline hours
+              if (event.end.getHours() >= timelineStartHour && event.start.getHours() < timelineEndHour) {
+                return (
+                  <div
+                    key={event.id}
+                    className={cn(
+                      "absolute left-[4.5rem] right-0 rounded-md p-2 text-xs text-white overflow-hidden",
+                      event.color,
+                    )}
+                    style={{ top: `${top}px`, height: `${height}px` }}
+                  >
+                    <p className="font-medium">{event.title}</p>
+                    <p className="text-[0.65rem] opacity-90">{format(event.start, "h:mm a")} - {format(event.end, "h:mm a")}</p>
+                  </div>
+                );
+              }
+              return null;
             })}
 
             {/* Current time indicator */}
