@@ -79,7 +79,8 @@ const events: Event[] = [
 const timelineStartHour = 7; // 7 AM
 const timelineEndHour = 22; // 10 PM (exclusive, so up to 21:59)
 const totalTimelineHours = timelineEndHour - timelineStartHour;
-const hourHeightPx = 64; // Height of each hour slot in pixels
+const hourWidthPx = 120; // Width of each hour slot in pixels for desktop
+const eventHeightPx = 48; // Height of an event block
 
 const generateTimeSlots = () => {
   const slots = [];
@@ -91,8 +92,8 @@ const generateTimeSlots = () => {
 
 const UpcomingEvents = () => {
   const [date, setDate] = useState<Date | undefined>(new Date(2025, 1, 19));
-  const [currentTimeIndicatorTop, setCurrentTimeIndicatorTop] = useState<number | null>(null);
-  const timelineRef = useRef<HTMLDivElement>(null);
+  const [currentTimeIndicatorLeft, setCurrentTimeIndicatorLeft] = useState<number | null>(null);
+  const timelineRef = useRef<HTMLDivElement>(null); // Ref for the scrollable timeline container
 
   const timeSlots = generateTimeSlots();
 
@@ -106,15 +107,15 @@ const UpcomingEvents = () => {
   // Real-time indicator logic
   useEffect(() => {
     if (!date || !isToday(date) || !timelineRef.current) {
-      setCurrentTimeIndicatorTop(null);
+      setCurrentTimeIndicatorLeft(null);
       return;
     }
 
     const updateCurrentTimeIndicator = () => {
       const now = new Date();
       const minutesFromTimelineStart = (now.getHours() - timelineStartHour) * 60 + now.getMinutes();
-      const top = (minutesFromTimelineStart / 60) * hourHeightPx;
-      setCurrentTimeIndicatorTop(top);
+      const left = (minutesFromTimelineStart / 60) * hourWidthPx;
+      setCurrentTimeIndicatorLeft(left);
     };
 
     updateCurrentTimeIndicator();
@@ -130,63 +131,75 @@ const UpcomingEvents = () => {
       </CardHeader>
       <CardContent className="flex-1 flex flex-col p-0">
         <WeekCalendar selected={date} onSelect={setDate} events={events.map(e => ({ date: e.start }))} />
-        <ScrollArea className="flex-1 p-4">
-          <div className="relative grid grid-cols-[auto_1fr] gap-x-2" ref={timelineRef} style={{ minHeight: `${totalTimelineHours * hourHeightPx}px` }}>
-            {/* Time labels and grid lines */}
-            {timeSlots.map((slot, index) => (
-              <React.Fragment key={format(slot, "HH:mm")}>
-                <div
-                  className={cn(
-                    "text-right text-xs text-muted-foreground pt-2",
-                    index === 0 ? "self-start" : "self-stretch"
-                  )}
-                  style={{ height: `${hourHeightPx}px` }}
-                >
-                  {format(slot, "h a")}
-                </div>
-                <div className="relative border-b border-border" style={{ height: `${hourHeightPx}px` }}>
-                  {/* This div acts as the horizontal grid line */}
-                </div>
-              </React.Fragment>
-            ))}
-
-            {/* Events */}
-            {filteredEvents.map((event) => {
-              const startMinutesFromTimelineStart = (event.start.getHours() - timelineStartHour) * 60 + event.start.getMinutes();
-              const durationMinutes = differenceInMinutes(event.end, event.start);
-
-              const top = (startMinutesFromTimelineStart / 60) * hourHeightPx;
-              const height = (durationMinutes / 60) * hourHeightPx;
-
-              return (
-                <div
-                  key={event.id}
-                  className={cn(
-                    "absolute left-[4.5rem] right-0 rounded-md p-2 text-xs text-white overflow-hidden",
-                    event.color,
-                  )}
-                  style={{ top: `${top}px`, height: `${height}px` }}
-                >
-                  <p className="font-medium">{event.title}</p>
-                  <p className="text-[0.65rem] opacity-90">{format(event.start, "h:mm a")} - {format(event.end, "h:mm a")}</p>
-                </div>
-              );
-            })}
-
-            {/* Current time indicator */}
-            {currentTimeIndicatorTop !== null && (
-              <div
-                className="absolute col-start-2 col-end-3 h-0.5 bg-red-500 z-20"
-                style={{ top: `${currentTimeIndicatorTop}px` }}
-              >
-                <div className="absolute -left-1 -top-1 h-3 w-3 rounded-full bg-red-500" />
+        <div className="relative flex-1 overflow-hidden"> {/* Container for horizontal scroll */}
+          <ScrollArea className="h-full w-full whitespace-nowrap">
+            <div
+              className="relative flex flex-col"
+              style={{ width: `${totalTimelineHours * hourWidthPx}px` }} // Ensure content width for scrolling
+            >
+              {/* Time Headers */}
+              <div className="flex border-b border-border">
+                {timeSlots.map((slot, index) => (
+                  <div
+                    key={format(slot, "HH:mm")}
+                    className="flex-shrink-0 text-center text-xs text-muted-foreground py-2"
+                    style={{ width: `${hourWidthPx}px` }}
+                  >
+                    {format(slot, "h a")}
+                  </div>
+                ))}
               </div>
-            )}
-          </div>
-          {filteredEvents.length === 0 && (
-            <p className="text-center text-muted-foreground text-sm mt-4">No events for this day.</p>
-          )}
-        </ScrollArea>
+
+              {/* Event Area */}
+              <div className="relative flex-1 h-[200px] border-b border-border" ref={timelineRef}> {/* Fixed height for event area */}
+                {/* Vertical grid lines */}
+                {timeSlots.map((slot, index) => (
+                  <div
+                    key={`grid-${format(slot, "HH:mm")}`}
+                    className="absolute top-0 bottom-0 border-r border-border"
+                    style={{ left: `${index * hourWidthPx}px`, width: `${hourWidthPx}px` }}
+                  />
+                ))}
+
+                {/* Events */}
+                {filteredEvents.map((event) => {
+                  const startMinutesFromTimelineStart = (event.start.getHours() - timelineStartHour) * 60 + event.start.getMinutes();
+                  const durationMinutes = differenceInMinutes(event.end, event.start);
+
+                  const left = (startMinutesFromTimelineStart / 60) * hourWidthPx;
+                  const width = (durationMinutes / 60) * hourWidthPx;
+
+                  return (
+                    <div
+                      key={event.id}
+                      className={cn(
+                        "absolute top-2 rounded-md p-2 text-xs text-white overflow-hidden z-10", // Added z-10 to ensure events are above grid lines
+                        event.color,
+                      )}
+                      style={{ left: `${left}px`, width: `${width}px`, height: `${eventHeightPx}px` }}
+                    >
+                      <p className="font-medium">{event.title}</p>
+                      <p className="text-[0.65rem] opacity-90">{format(event.start, "h:mm a")} - {format(event.end, "h:mm a")}</p>
+                    </div>
+                  );
+                })}
+
+                {/* Current time indicator */}
+                {currentTimeIndicatorLeft !== null && (
+                  <div
+                    className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-20"
+                    style={{ left: `${currentTimeIndicatorLeft}px` }}
+                  >
+                    <div className="absolute -top-1 -left-1 h-3 w-3 rounded-full bg-red-500" />
+                  </div>
+                )}
+              </div>
+              {filteredEvents.length === 0 && (
+                <p className="text-center text-muted-foreground text-sm mt-4 absolute w-full top-1/2 left-0 -translate-y-1/2">No events for this day.</p>
+              )}
+            </div>
+          </ScrollArea>
+        </div>
       </CardContent>
     </Card>
   );
