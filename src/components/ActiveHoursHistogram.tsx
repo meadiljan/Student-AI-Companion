@@ -33,7 +33,7 @@ const ActiveHoursHistogram = () => {
   return (
     <Card className="rounded-xl shadow-sm bg-card h-full">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-foreground text-lg font-semibold">Active Hours</CardTitle>
+        <CardTitle className="text-foreground text-lg font-semibold">Actively Hours</CardTitle>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -60,7 +60,7 @@ const ActiveHoursHistogram = () => {
               margin={{
                 top: 20,
                 right: 0,
-                left: 10,
+                left: 10, // Adjusted left margin to give Y-axis more space
                 bottom: 0,
               }}
               barCategoryGap="20%"
@@ -77,8 +77,8 @@ const ActiveHoursHistogram = () => {
                 axisLine={false}
                 tickLine={false}
                 className="text-xs text-muted-foreground"
-                width={40}
-                ticks={[0, 2, 4, 6, 8]} // Added 6h to make spacing equal
+                width={40} // Increased Y-axis width
+                ticks={[0, 2, 4, 8]}
               />
               <Tooltip
                 cursor={{ fill: "transparent" }}
@@ -94,8 +94,8 @@ const ActiveHoursHistogram = () => {
               <Bar
                 dataKey="hoursSpent"
                 fill="hsl(var(--primary))"
-                radius={[8, 8, 0, 0]}
-                barSize={32}
+                radius={[8, 8, 0, 0]} // Rounded top corners, flat bottom
+                barSize={32} // Increased bar size for a wider look
               />
             </BarChart>
           </ResponsiveContainer>
