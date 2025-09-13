@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { ChevronDown } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+// Removed Badge import as it's no longer needed for summary statistics
 
 const data = [
   { day: "S", hoursSpent: 1.8 },
@@ -53,8 +53,8 @@ const ActiveHoursHistogram = () => {
           </DropdownMenuContent>
         </DropdownMenu>
       </CardHeader>
-      <CardContent className="flex flex-col md:flex-row items-center justify-between p-4 pt-0">
-        <div className="h-[200px] w-full md:w-2/3">
+      <CardContent className="flex flex-col p-4 pt-0">
+        <div className="h-[200px] w-full"> {/* Changed to w-full */}
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={data}
@@ -73,13 +73,13 @@ const ActiveHoursHistogram = () => {
                 className="text-xs text-muted-foreground"
               />
               <YAxis
-                domain={[0, 8]} // Set domain up to 8 hours to match ticks
+                domain={[0, 8]}
                 tickFormatter={(value) => `${value}h`}
                 axisLine={false}
                 tickLine={false}
                 className="text-xs text-muted-foreground"
                 width={30}
-                ticks={[0, 2, 4, 8]} // Explicitly set ticks for 0h, 2h, 4h, 8h
+                ticks={[0, 2, 4, 8]}
               />
               <Tooltip
                 cursor={{ fill: "transparent" }}
@@ -101,35 +101,7 @@ const ActiveHoursHistogram = () => {
             </BarChart>
           </ResponsiveContainer>
         </div>
-        <div className="flex flex-col gap-4 mt-6 md:mt-0 md:w-1/3 md:pl-4">
-          <div className="flex flex-col">
-            <span className="text-sm text-muted-foreground">Time spent</span>
-            <div className="flex items-center gap-2">
-              <span className="text-2xl font-bold text-foreground">28</span>
-              <Badge variant="outline" className="bg-green-100 text-green-700 border-green-200 text-xs">
-                85%
-              </Badge>
-            </div>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-sm text-muted-foreground">Lessons taken</span>
-            <div className="flex items-center gap-2">
-              <span className="text-2xl font-bold text-foreground">60</span>
-              <Badge variant="outline" className="bg-green-100 text-green-700 border-green-200 text-xs">
-                79%
-              </Badge>
-            </div>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-sm text-muted-foreground">Exam passed</span>
-            <div className="flex items-center gap-2">
-              <span className="text-2xl font-bold text-foreground">10</span>
-              <Badge variant="outline" className="bg-green-100 text-green-700 border-green-200 text-xs">
-                100%
-              </Badge>
-            </div>
-          </div>
-        </div>
+        {/* Removed the summary statistics section */}
       </CardContent>
     </Card>
   );
