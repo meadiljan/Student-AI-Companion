@@ -9,7 +9,6 @@ import {
   YAxis,
   ResponsiveContainer,
   Tooltip,
-  LabelList, // Import LabelList
 } from "recharts";
 import {
   DropdownMenu,
@@ -64,6 +63,7 @@ const ActiveHoursHistogram = () => {
                 left: 10,
                 bottom: 0,
               }}
+              // Removed barCategoryGap to allow for equal spacing
             >
               <XAxis
                 dataKey="day"
@@ -96,14 +96,7 @@ const ActiveHoursHistogram = () => {
                 fill="hsl(var(--primary))"
                 radius={[8, 8, 0, 0]}
                 barSize={32}
-              >
-                <LabelList
-                  dataKey="hoursSpent"
-                  position="top"
-                  formatter={(value: number) => `${value}h`}
-                  style={{ fill: "hsl(var(--foreground))", fontSize: "12px" }}
-                />
-              </Bar>
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>
