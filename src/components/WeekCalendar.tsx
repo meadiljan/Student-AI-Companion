@@ -56,13 +56,13 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({ selected, onSelect, events 
   return (
     <div className="p-4 border-b">
       <div className="flex items-center justify-between mb-4">
-        <Button variant="ghost" size="icon" onClick={handlePreviousWeek} className="rounded-full">
+        <Button variant="ghost" size="icon" onClick={handlePreviousWeek} className="rounded-2xl">
           <ChevronLeft className="h-4 w-4" />
         </Button>
         <h3 className="text-lg font-semibold text-foreground">
           {format(currentWeekStart, "MMMM yyyy")}
         </h3>
-        <Button variant="ghost" size="icon" onClick={handleNextWeek} className="rounded-full">
+        <Button variant="ghost" size="icon" onClick={handleNextWeek} className="rounded-2xl">
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
@@ -76,7 +76,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({ selected, onSelect, events 
               key={index}
               variant="ghost"
               className={cn(
-                "flex flex-col items-center justify-center p-2 rounded-xl h-auto",
+                "flex flex-col items-center justify-center p-2 rounded-2xl h-auto",
                 isSelected && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground",
                 hasEvent && !isSelected && "bg-accent text-accent-foreground hover:bg-accent/80",
                 !isSelected && "text-muted-foreground hover:bg-muted/50"

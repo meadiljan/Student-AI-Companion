@@ -32,7 +32,7 @@ const navItems = [
     icon: Book,
   },
   {
-    title: "Timetable",
+    title: "Calendar",
     href: "/timetable",
     icon: CalendarDays,
   },
@@ -62,7 +62,7 @@ export function Sidebar({ className, isCollapsed }: SidebarProps) {
   return (
     <div
       className={cn(
-        "relative flex h-full flex-col overflow-hidden rounded-2xl bg-sidebar p-4 shadow-lg transition-all duration-300",
+        "relative flex h-full flex-col overflow-hidden rounded-3xl bg-sidebar p-4 shadow-lg transition-all duration-300",
         isCollapsed ? "w-[70px]" : "w-[240px]",
         className,
       )}
@@ -92,7 +92,7 @@ export function Sidebar({ className, isCollapsed }: SidebarProps) {
               <Button
                 variant="ghost"
                 className={cn(
-                  "w-full justify-start rounded-lg",
+                  "w-full justify-start rounded-2xl",
                   isCollapsed ? "h-9 px-2" : "h-10 px-4",
                 )}
               >
@@ -115,7 +115,7 @@ export function Sidebar({ className, isCollapsed }: SidebarProps) {
           <Button
             variant="ghost"
             className={cn(
-              "w-full justify-start rounded-lg",
+              "w-full justify-start rounded-2xl",
               isCollapsed ? "h-9 px-2" : "h-10 px-4",
             )}
           >

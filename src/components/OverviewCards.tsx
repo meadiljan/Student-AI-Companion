@@ -1,11 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowUp, ArrowDown, Calendar } from "lucide-react";
+import { ArrowUp, ArrowDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
 
 interface OverviewCardProps {
   title: string;
@@ -24,7 +23,7 @@ const OverviewCard: React.FC<OverviewCardProps> = ({
 }) => (
   <Card
     className={cn(
-      "rounded-xl shadow-sm flex-1 min-w-[180px]",
+      "rounded-3xl shadow-sm flex-1 min-w-[180px]",
       isDark ? "bg-primary text-primary-foreground" : "bg-card text-foreground",
     )}
   >
@@ -53,22 +52,18 @@ const OverviewCard: React.FC<OverviewCardProps> = ({
         ) : (
           <ArrowDown className="h-3 w-3 mr-1" />
         )}
-        {changePercentage} from last month
+        {changePercentage} from last semester
       </p>
     </CardContent>
   </Card>
 );
 
 const OverviewCards = () => {
-  const [activeFilter, setActiveFilter] = useState("Month");
-  const startDate = new Date(2024, 8, 1); // September 1, 2024
-  const endDate = new Date(2024, 8, 30); // September 30, 2024
-
   const cardsData: OverviewCardProps[] = [ // Explicitly type the array
     {
-      title: "Total Revenue",
-      value: "$23,902",
-      changePercentage: "4.2%",
+      title: "Active Hours",
+      value: "39.5h",
+      changePercentage: "12.4%",
       changeDirection: "up",
       isDark: true,
     },
@@ -85,9 +80,9 @@ const OverviewCards = () => {
       changeDirection: "down",
     },
     {
-      title: "Total Mentors",
-      value: "2,023",
-      changePercentage: "0.9%",
+      title: "CGPA",
+      value: "3.85",
+      changePercentage: "0.12",
       changeDirection: "up",
     },
   ];
@@ -95,29 +90,12 @@ const OverviewCards = () => {
   return (
     <div className="mb-6">
       <div className="flex items-center justify-end space-x-2 mb-4">
-        <div className="flex space-x-1 rounded-full bg-muted p-1">
-          {["Day", "Week", "Month", "Year"].map((filter) => (
-            <Button
-              key={filter}
-              variant={activeFilter === filter ? "default" : "ghost"}
-              size="sm"
-              className={cn(
-                "rounded-full px-3 py-1 text-sm",
-                activeFilter === filter
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted",
-              )}
-              onClick={() => setActiveFilter(filter)}
-            >
-              {filter}
-            </Button>
-          ))}
-        </div>
-        <Button variant="outline" size="sm" className="h-8 gap-1 rounded-full text-sm">
-          <Calendar className="h-4 w-4" />
-          <span>
-            {format(startDate, "d MMM yyyy")} - {format(endDate, "d MMM yyyy")}
-          </span>
+        <Button 
+          variant="default" 
+          size="sm" 
+          className="h-9 gap-2 rounded-2xl text-sm bg-primary text-primary-foreground hover:bg-primary/90"
+        >
+          Setup Account
         </Button>
       </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

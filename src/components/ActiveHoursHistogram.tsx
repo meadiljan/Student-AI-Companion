@@ -10,91 +10,70 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from "recharts";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
-import { ChevronDown } from "lucide-react";
 
 const data = [
-  { day: "S", hoursSpent: 1.8 },
-  { day: "M", hoursSpent: 4.5 },
-  { day: "T", hoursSpent: 3.0 },
-  { day: "W", hoursSpent: 4.2 },
-  { day: "T", hoursSpent: 7.0 },
-  { day: "F", hoursSpent: 3.5 },
-  { day: "S", hoursSpent: 3.2 },
+  { day: "Sun", hoursSpent: 2.8 },
+  { day: "Mon", hoursSpent: 6.5 },
+  { day: "Tue", hoursSpent: 4.8 },
+  { day: "Wed", hoursSpent: 7.2 },
+  { day: "Thu", hoursSpent: 8.5 },
+  { day: "Fri", hoursSpent: 5.5 },
+  { day: "Sat", hoursSpent: 4.2 },
 ];
 
 const ActiveHoursHistogram = () => {
   return (
-    <Card className="rounded-xl shadow-sm bg-card h-full">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-foreground text-lg font-semibold">Actively Hours</CardTitle>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 gap-1 rounded-full text-sm"
-            >
-              Weekly
-              <ChevronDown className="h-4 w-4 opacity-50" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-[150px]">
-            <DropdownMenuItem>Daily</DropdownMenuItem>
-            <DropdownMenuItem>Weekly</DropdownMenuItem>
-            <DropdownMenuItem>Monthly</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+    <Card className="rounded-3xl shadow-sm bg-card flex flex-col">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+        <CardTitle className="text-foreground text-lg font-semibold">Active Hours</CardTitle>
       </CardHeader>
-      <CardContent className="flex flex-col p-4 pt-0">
-        <div className="h-[200px] w-full">
+      <CardContent className="flex flex-col p-4 pt-0 pb-4">
+        <div className="h-[250px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={data}
               margin={{
                 top: 20,
-                right: 0,
-                left: 10,
-                bottom: 0,
+                right: 15,
+                left: 15,
+                bottom: 15,
               }}
             >
               <XAxis
                 dataKey="day"
                 axisLine={false}
                 tickLine={false}
-                className="text-xs text-muted-foreground"
+                className="text-sm text-muted-foreground font-medium"
+                tick={{ fontSize: 14 }}
               />
               <YAxis
-                domain={[0, 8]}
+                domain={[0, 10]}
                 tickFormatter={(value) => `${value}h`}
                 axisLine={false}
                 tickLine={false}
-                className="text-xs text-muted-foreground"
-                width={40}
-                ticks={[0, 2, 4, 6, 8]}
+                className="text-sm text-muted-foreground"
+                width={50}
+                ticks={[0, 2, 4, 6, 8, 10]}
+                tick={{ fontSize: 12 }}
               />
               <Tooltip
                 cursor={{ fill: "transparent" }}
                 contentStyle={{
                   backgroundColor: "hsl(var(--card))",
                   borderColor: "hsl(var(--border))",
-                  borderRadius: "0.5rem",
+                  borderRadius: "1rem",
+                  fontSize: "14px",
+                  padding: "12px",
                 }}
-                labelStyle={{ color: "hsl(var(--foreground))" }}
-                itemStyle={{ color: "hsl(var(--foreground))" }}
+                labelStyle={{ color: "hsl(var(--foreground))", fontSize: "14px", fontWeight: "600" }}
+                itemStyle={{ color: "hsl(var(--foreground))", fontSize: "14px" }}
                 formatter={(value: number) => [`${value}h`, "Hours Spent"]}
               />
               <Bar
                 dataKey="hoursSpent"
                 fill="hsl(var(--primary))"
-                radius={[8, 8, 0, 0]}
-                barSize={32}
+                radius={[12, 12, 12, 12]}
+                barSize={40}
               />
             </BarChart>
           </ResponsiveContainer>

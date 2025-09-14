@@ -2,6 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Hide scrollbars for calendar events */
+.scrollbar-hide {
+  /* Hide scrollbar for Firefox */
+  scrollbar-width: none;
+  /* Hide scrollbar for IE and Edge */
+  -ms-overflow-style: none;
+}
+
+/* Hide scrollbar for Webkit browsers */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;
