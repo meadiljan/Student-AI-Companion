@@ -13,7 +13,7 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
-import { Search, Plus, type LucideIcon } from "lucide-react";
+import { Search, Plus, type LucideIcon, X } from "lucide-react";
 import * as Icons from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -126,9 +126,13 @@ const Courses = () => {
                   Create Course
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[525px] bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20">
+              <DialogContent className="sm:max-w-[525px] bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 p-8">
                 <DialogHeader>
                   <DialogTitle className="text-2xl font-bold text-foreground">Create a New Course</DialogTitle>
+                   <DialogClose className="absolute right-6 top-6 rounded-lg p-1 opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
+                    <X className="h-5 w-5" />
+                    <span className="sr-only">Close</span>
+                  </DialogClose>
                 </DialogHeader>
                 <div className="grid gap-6 py-4">
                   <div className="grid gap-2">
@@ -176,14 +180,18 @@ const Courses = () => {
                     </div>
                   </div>
                 </div>
-                <DialogFooter>
+                <DialogFooter className="sm:justify-end gap-2 pt-4">
                   <DialogClose asChild>
-                    <Button type="button" variant="ghost" className="rounded-2xl px-6 py-3 h-12 text-gray-600 hover:bg-gray-100">
+                    <Button type="button" variant="ghost" className="rounded-2xl h-11 px-5">
                       Cancel
                     </Button>
                   </DialogClose>
-                  <Button type="submit" onClick={handleCreateCourse} className="bg-black hover:bg-gray-800 text-white rounded-2xl px-6 py-3 h-12 font-medium">
-                     <Plus className="w-4 h-4 mr-2" />
+                  <Button 
+                    type="submit" 
+                    onClick={handleCreateCourse} 
+                    className="bg-gray-100 text-gray-900 hover:bg-gray-200 rounded-2xl h-11 px-5 font-medium"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
                     Create Course
                   </Button>
                 </DialogFooter>
