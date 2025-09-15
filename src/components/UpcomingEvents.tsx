@@ -409,11 +409,12 @@ const UpcomingEvents = () => {
                   key={index}
                   variant="ghost"
                   className={cn(
-                    "flex flex-col items-center justify-center p-2 rounded-2xl h-auto",
-                    isSelected && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground",
-                    !isSelected && isCurrentDay && "bg-accent text-accent-foreground hover:bg-accent/80",
-                    hasEvent && !isSelected && !isCurrentDay && "bg-muted text-muted-foreground hover:bg-muted/80",
-                    !isSelected && !isCurrentDay && !hasEvent && "text-muted-foreground hover:bg-muted/50"
+                    "relative flex flex-col items-center justify-center p-2 rounded-2xl h-auto transition-colors focus:ring-2 focus:ring-ring focus:ring-offset-2",
+                    {
+                      "bg-black text-white hover:bg-gray-800": isCurrentDay,
+                      "bg-primary text-primary-foreground hover:bg-primary/90": isSelected && !isCurrentDay,
+                      "bg-muted text-muted-foreground hover:bg-muted/80": !isSelected && !isCurrentDay,
+                    }
                   )}
                   onClick={() => setSelectedDate(day)}
                 >
@@ -423,6 +424,12 @@ const UpcomingEvents = () => {
                   <span className="text-lg font-bold">
                     {format(day, "d")}
                   </span>
+                  {hasEvent && (
+                    <span className={cn(
+                      "absolute bottom-1.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full",
+                      (isCurrentDay || isSelected) ? "bg-white/70" : "bg-primary"
+                    )}></span>
+                  )}
                 </Button>
               );
             })}
