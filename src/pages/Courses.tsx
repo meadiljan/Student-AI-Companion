@@ -126,21 +126,21 @@ const Courses = () => {
                   Create Course
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[480px] bg-white/80 backdrop-blur-xl border-none rounded-3xl">
+              <DialogContent className="sm:max-w-[525px] bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20">
                 <DialogHeader>
                   <DialogTitle className="text-2xl font-bold text-foreground">Create a New Course</DialogTitle>
                 </DialogHeader>
                 <div className="grid gap-6 py-4">
                   <div className="grid gap-2">
-                    <label htmlFor="title" className="text-sm font-medium text-foreground">Course Title</label>
-                    <Input id="title" name="title" value={newCourse.title} onChange={handleInputChange} className="rounded-xl" placeholder="e.g., Advanced Typography" />
+                    <label htmlFor="title" className="text-sm font-medium text-gray-700">Course Title</label>
+                    <Input id="title" name="title" value={newCourse.title} onChange={handleInputChange} className="rounded-2xl border-gray-200 bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-black focus:border-transparent h-12" placeholder="e.g., Advanced Typography" />
                   </div>
                   <div className="grid gap-2">
-                    <label htmlFor="instructor" className="text-sm font-medium text-foreground">Instructor Name</label>
-                    <Input id="instructor" name="instructor" value={newCourse.instructor} onChange={handleInputChange} className="rounded-xl" placeholder="e.g., Prof. Elara Vance" />
+                    <label htmlFor="instructor" className="text-sm font-medium text-gray-700">Instructor Name</label>
+                    <Input id="instructor" name="instructor" value={newCourse.instructor} onChange={handleInputChange} className="rounded-2xl border-gray-200 bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-black focus:border-transparent h-12" placeholder="e.g., Prof. Elara Vance" />
                   </div>
                   <div className="grid gap-2">
-                    <label className="text-sm font-medium text-foreground">Icon</label>
+                    <label className="text-sm font-medium text-gray-700">Icon</label>
                     <div className="flex flex-wrap gap-3">
                       {iconOptions.map(iconName => {
                         const IconComponent = Icons[iconName] as React.ElementType;
@@ -149,7 +149,7 @@ const Courses = () => {
                             key={iconName}
                             onClick={() => setNewCourse(prev => ({ ...prev, icon: iconName }))}
                             className={cn(
-                              "h-10 w-10 flex items-center justify-center rounded-lg border transition-all",
+                              "h-10 w-10 flex items-center justify-center rounded-xl border transition-all",
                               newCourse.icon === iconName ? "ring-2 ring-primary ring-offset-2" : "text-muted-foreground"
                             )}
                           >
@@ -160,14 +160,14 @@ const Courses = () => {
                     </div>
                   </div>
                   <div className="grid gap-2">
-                    <label className="text-sm font-medium text-foreground">Color</label>
+                    <label className="text-sm font-medium text-gray-700">Color</label>
                     <div className="flex flex-wrap gap-3">
                       {colorOptions.map(color => (
                         <button
                           key={color}
                           onClick={() => setNewCourse(prev => ({ ...prev, color }))}
                           className={cn(
-                            "h-10 w-10 rounded-lg",
+                            "h-10 w-10 rounded-xl",
                             color,
                             newCourse.color === color && "ring-2 ring-primary ring-offset-2"
                           )}
@@ -178,11 +178,12 @@ const Courses = () => {
                 </div>
                 <DialogFooter>
                   <DialogClose asChild>
-                    <Button type="button" variant="ghost" className="rounded-xl">
+                    <Button type="button" variant="ghost" className="rounded-2xl px-6 py-3 h-12 text-gray-600 hover:bg-gray-100">
                       Cancel
                     </Button>
                   </DialogClose>
-                  <Button type="submit" onClick={handleCreateCourse} className="rounded-xl">
+                  <Button type="submit" onClick={handleCreateCourse} className="bg-black hover:bg-gray-800 text-white rounded-2xl px-6 py-3 h-12 font-medium">
+                     <Plus className="w-4 h-4 mr-2" />
                     Create Course
                   </Button>
                 </DialogFooter>
