@@ -430,7 +430,7 @@ const UpcomingEvents = () => {
         </div>
         
         {/* Timeline View */}
-        <ScrollArea className="h-64 p-4 scrollbar-hide">
+        <ScrollArea className="h-80 p-4 scrollbar-hide">
           <div className="relative grid grid-cols-[auto_1fr] gap-x-2" ref={timelineRef} style={{ minHeight: `${totalTimelineHours * hourHeightPx}px` }}>
             {/* Time labels and grid lines */}
             {timeSlots.map((slot, index) => (
