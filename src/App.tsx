@@ -10,6 +10,7 @@ import Dashboard from "./pages/Dashboard"; // Renamed from Index
 import Calendar from "./pages/Calendar";
 import Assignments from "./pages/Assignments";
 import Courses from "./pages/Courses";
+import CourseDetails from "./pages/CourseDetails";
 import NotFound from "./pages/NotFound";
 import AIAssistantSearchBar from "./components/AIAssistantSearchBar";
 
@@ -30,6 +31,7 @@ const App = () => (
                 <Route path="/assignments" element={<Assignments />} />
                 <Route path="/calendar" element={<Calendar />} />
                 <Route path="/courses" element={<Courses />} />
+                <Route path="/courses/:courseId" element={<CourseDetails />} />
                 <Route path="/timetable" element={<Calendar />} />
                 <Route path="/quizzes" element={<div>Quizzes Page</div>} />
                 <Route path="/notes" element={<div>Notes Page</div>} />

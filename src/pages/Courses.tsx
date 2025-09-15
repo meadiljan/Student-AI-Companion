@@ -1,12 +1,14 @@
 "use client";
 
 import React, { useState } from "react";
+import { Link } from "react-router-dom";
 import CourseCard from "@/components/CourseCard";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import * as Icons from "lucide-react";
 
 type Course = {
+  id: string;
   title: string;
   instructor: string;
   progress: number;
@@ -16,6 +18,7 @@ type Course = {
 
 const initialCoursesData: Course[] = [
   {
+    id: "advanced-typography",
     title: "Advanced Typography",
     instructor: "Prof. Elara Vance",
     progress: 75,
@@ -23,6 +26,7 @@ const initialCoursesData: Course[] = [
     color: "bg-blue-500",
   },
   {
+    id: "ux-for-mobile",
     title: "UX for Mobile",
     instructor: "Dr. Arion Quinn",
     progress: 40,
@@ -30,6 +34,7 @@ const initialCoursesData: Course[] = [
     color: "bg-purple-500",
   },
   {
+    id: "digital-illustration",
     title: "Digital Illustration",
     instructor: "Aria Beaumont",
     progress: 90,
@@ -37,6 +42,7 @@ const initialCoursesData: Course[] = [
     color: "bg-pink-500",
   },
   {
+    id: "web-development",
     title: "Web Development",
     instructor: "Prof. Leo Rivera",
     progress: 60,
@@ -44,6 +50,7 @@ const initialCoursesData: Course[] = [
     color: "bg-green-500",
   },
   {
+    id: "art-history",
     title: "Art History",
     instructor: "Dr. Helena Shaw",
     progress: 25,
@@ -51,6 +58,7 @@ const initialCoursesData: Course[] = [
     color: "bg-orange-500",
   },
   {
+    id: "calculus-i",
     title: "Calculus I",
     instructor: "Prof. Kenji Tanaka",
     progress: 85,
@@ -85,8 +93,10 @@ const Courses = () => {
       </div>
       <div className="flex-1 overflow-y-auto">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {courses.map((course, index) => (
-            <CourseCard key={index} {...course} />
+          {courses.map((course) => (
+            <Link to={`/courses/${course.id}`} key={course.id} className="no-underline">
+              <CourseCard {...course} />
+            </Link>
           ))}
         </div>
       </div>
