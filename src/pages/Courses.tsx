@@ -126,7 +126,7 @@ const Courses = () => {
                   Create Course
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[525px] bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20">
+              <DialogContent className="sm:max-w-[525px] bg-white/95 backdrop-blur-xl rounded-[2.5rem] shadow-2xl border border-white/20">
                 <DialogHeader>
                   <DialogTitle className="text-2xl font-bold text-foreground">Create a New Course</DialogTitle>
                 </DialogHeader>
