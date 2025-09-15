@@ -14,6 +14,7 @@ import {
   Lightbulb,
   NotebookPen,
   Settings,
+  Library,
 } from "lucide-react";
 
 interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -30,6 +31,11 @@ const navItems = [
     title: "Assignments",
     href: "/assignments",
     icon: Book,
+  },
+  {
+    title: "Courses",
+    href: "/courses",
+    icon: Library,
   },
   {
     title: "Calendar",
