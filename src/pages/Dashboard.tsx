@@ -16,7 +16,9 @@ const Dashboard = () => {
           <ActiveHoursHistogram />
         </div>
         <div className="lg:col-span-3 flex flex-col">
-          <UpcomingEvents />
+          <div className="flex flex-col h-full">
+            <UpcomingEvents />
+          </div>
         </div>
       </div>
       <MadeWithDyad />
