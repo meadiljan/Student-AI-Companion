@@ -9,6 +9,7 @@ import MainLayout from "./components/MainLayout"; // Import the new MainLayout
 import Dashboard from "./pages/Dashboard"; // Renamed from Index
 import Calendar from "./pages/Calendar";
 import Assignments from "./pages/Assignments";
+import Courses from "./pages/Courses";
 import NotFound from "./pages/NotFound";
 import AIAssistantSearchBar from "./components/AIAssistantSearchBar";
 
@@ -28,6 +29,7 @@ const App = () => (
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="/assignments" element={<Assignments />} />
                 <Route path="/calendar" element={<Calendar />} />
+                <Route path="/courses" element={<Courses />} />
                 <Route path="/timetable" element={<Calendar />} />
                 <Route path="/quizzes" element={<div>Quizzes Page</div>} />
                 <Route path="/notes" element={<div>Notes Page</div>} />
