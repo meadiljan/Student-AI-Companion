@@ -380,11 +380,11 @@ const UpcomingEvents = () => {
   }, [editShowDatePicker, showStartTimeDropdown, showEndTimeDropdown]);
 
   return (
-    <Card className="rounded-3xl shadow-sm bg-card flex flex-col h-full">
+    <Card className="rounded-3xl shadow-sm bg-card flex flex-col">
       <CardHeader>
         <CardTitle className="text-foreground">Upcoming Events</CardTitle>
       </CardHeader>
-      <CardContent className="flex flex-col p-0 flex-1 min-h-0">
+      <CardContent className="flex flex-col p-0">
         {/* Week View */}
         <div className="p-4 border-b">
           <div className="flex items-center justify-between mb-4">
@@ -430,7 +430,7 @@ const UpcomingEvents = () => {
         </div>
         
         {/* Timeline View */}
-        <ScrollArea className="flex-1 p-4 scrollbar-hide">
+        <ScrollArea className="h-44 p-4 scrollbar-hide">
           <div className="relative grid grid-cols-[auto_1fr] gap-x-2" ref={timelineRef} style={{ minHeight: `${totalTimelineHours * hourHeightPx}px` }}>
             {/* Time labels and grid lines */}
             {timeSlots.map((slot, index) => (
