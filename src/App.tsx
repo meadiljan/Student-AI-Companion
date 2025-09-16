@@ -11,6 +11,7 @@ import Calendar from "./pages/Calendar";
 import Assignments from "./pages/Assignments";
 import Courses from "./pages/Courses";
 import CourseDetails from "./pages/CourseDetails";
+import LecturePage from "./pages/LecturePage";
 import NotFound from "./pages/NotFound";
 import AIAssistantSearchBar from "./components/AIAssistantSearchBar";
 
@@ -32,6 +33,7 @@ const App = () => (
                 <Route path="/calendar" element={<Calendar />} />
                 <Route path="/courses" element={<Courses />} />
                 <Route path="/courses/:courseId" element={<CourseDetails />} />
+                <Route path="/courses/:courseId/lecture/:lectureId" element={<LecturePage />} />
                 <Route path="/timetable" element={<Calendar />} />
                 <Route path="/quizzes" element={<div>Quizzes Page</div>} />
                 <Route path="/notes" element={<div>Notes Page</div>} />
