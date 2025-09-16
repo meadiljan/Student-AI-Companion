@@ -18,7 +18,7 @@ import {
   Highlighter,
   StickyNote,
   CheckCircle2,
-  X
+  RotateCcw
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import * as pdfjsLib from 'pdfjs-dist';
@@ -329,8 +329,8 @@ const LecturePage = () => {
                 variant="outline"
                 className="rounded-2xl border-orange-200 text-orange-600 hover:bg-orange-50"
               >
-                <X className="w-4 h-4 mr-2" />
-                {isSaving ? "Processing..." : "Uncomplete Lecture"}
+                <RotateCcw className="w-4 h-4 mr-2" />
+                {isSaving ? "Processing..." : "Mark as Uncompleted"}
               </Button>
             ) : (
               <Button

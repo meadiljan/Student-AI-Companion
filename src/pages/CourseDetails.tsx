@@ -5,7 +5,7 @@ import { useParams, Link } from "react-router-dom";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowLeft, CheckCircle2, PlayCircle, Lock, Clapperboard, Plus, X, Upload, FileText, ChevronDown, ChevronUp, Minus } from "lucide-react";
+import { ArrowLeft, CheckCircle2, PlayCircle, Lock, Clapperboard, Plus, X, Upload, FileText, ChevronDown, ChevronUp, Minus, RotateCcw } from "lucide-react";
 import * as Icons from "lucide-react";
 import { cn } from "@/lib/utils";
 import * as pdfjsLib from 'pdfjs-dist';
@@ -412,7 +412,7 @@ const CourseDetails = () => {
                           className="rounded-xl border-orange-200 text-orange-600 hover:bg-orange-50"
                           title="Mark as incomplete"
                         >
-                          <X className="w-3 h-3" />
+                          <RotateCcw className="w-3 h-3" />
                         </Button>
                       </>
                     )}
