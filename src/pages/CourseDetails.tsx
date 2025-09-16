@@ -9,106 +9,20 @@ import { ArrowLeft, CheckCircle2, PlayCircle, Lock, Clapperboard, Plus, X, Uploa
 import * as Icons from "lucide-react";
 import { cn } from "@/lib/utils";
 import * as pdfjsLib from 'pdfjs-dist';
+import { useCourses, Lecture } from "@/contexts/CoursesContext";
 
 // Configure PDF.js worker
 if (typeof window !== 'undefined') {
   pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 }
 
-// Mock data for all courses, including lectures
-const coursesData = [
-  {
-    id: "advanced-typography",
-    title: "Advanced Typography",
-    instructor: "Prof. Elara Vance",
-    progress: 75,
-    icon: "Type" as keyof typeof Icons,
-    color: "bg-blue-500",
-    lectures: [
-      { id: 1, title: "The History of Serif", duration: "45 min", status: "completed" },
-      { id: 2, title: "Understanding Kerning and Tracking", duration: "55 min", status: "completed" },
-      { id: 3, title: "Webfont Performance and Optimization", duration: "60 min", status: "current" },
-      { id: 4, title: "The Magic of Variable Fonts", duration: "50 min", status: "upcoming" },
-      { id: 5, title: "Final Project Briefing", duration: "30 min", status: "upcoming" },
-    ],
-  },
-  {
-    id: "ux-for-mobile",
-    title: "UX for Mobile",
-    instructor: "Dr. Arion Quinn",
-    progress: 40,
-    icon: "Smartphone" as keyof typeof Icons,
-    color: "bg-purple-500",
-    lectures: [
-      { id: 1, title: "Mobile-First Design Principles", duration: "50 min", status: "completed" },
-      { id: 2, title: "Gesture-Based Navigation", duration: "45 min", status: "current" },
-      { id: 3, title: "Accessibility on Small Screens", duration: "55 min", status: "upcoming" },
-      { id: 4, title: "Prototyping with Figma", duration: "75 min", status: "upcoming" },
-    ],
-  },
-  {
-    id: "digital-illustration",
-    title: "Digital Illustration",
-    instructor: "Aria Beaumont",
-    progress: 90,
-    icon: "PenTool" as keyof typeof Icons,
-    color: "bg-pink-500",
-    lectures: [
-        { id: 1, title: "Introduction to Procreate", duration: "60 min", status: "completed" },
-        { id: 2, title: "Mastering Layers and Masks", duration: "70 min", status: "completed" },
-        { id: 3, title: "Color Theory in Digital Art", duration: "65 min", status: "completed" },
-        { id: 4, title: "Advanced Brush Techniques", duration: "75 min", status: "current" },
-        { id: 5, title: "Portfolio Project", duration: "120 min", status: "upcoming" },
-    ],
-  },
-  {
-    id: "web-development",
-    title: "Web Development",
-    instructor: "Prof. Leo Rivera",
-    progress: 60,
-    icon: "Code" as keyof typeof Icons,
-    color: "bg-green-500",
-    lectures: [
-        { id: 1, title: "HTML & CSS Fundamentals", duration: "90 min", status: "completed" },
-        { id: 2, title: "JavaScript for Beginners", duration: "120 min", status: "completed" },
-        { id: 3, title: "Introduction to React", duration: "120 min", status: "current" },
-        { id: 4, title: "State Management with Redux", duration: "90 min", status: "upcoming" },
-    ],
-  },
-  {
-    id: "art-history",
-    title: "Art History",
-    instructor: "Dr. Helena Shaw",
-    progress: 25,
-    icon: "Landmark" as keyof typeof Icons,
-    color: "bg-orange-500",
-    lectures: [
-        { id: 1, title: "Renaissance Masters", duration: "75 min", status: "current" },
-        { id: 2, title: "Impressionism and Post-Impressionism", duration: "75 min", status: "upcoming" },
-        { id: 3, title: "Modern Art Movements", duration: "90 min", status: "upcoming" },
-    ],
-  },
-  {
-    id: "calculus-i",
-    title: "Calculus I",
-    instructor: "Prof. Kenji Tanaka",
-    progress: 85,
-    icon: "Sigma" as keyof typeof Icons,
-    color: "bg-red-500",
-    lectures: [
-        { id: 1, title: "Limits and Continuity", duration: "60 min", status: "completed" },
-        { id: 2, title: "Derivatives", duration: "75 min", status: "completed" },
-        { id: 3, title: "Integrals", duration: "75 min", status: "completed" },
-        { id: 4, title: "Final Exam Review", duration: "120 min", status: "current" },
-    ],
-  },
-];
+
 
 const CourseDetails = () => {
   const { courseId } = useParams<{ courseId: string }>();
-  const course = coursesData.find(c => c.id === courseId);
+  const { getCourse, addLectureToCourse, deleteLecture, uncompleteLecture } = useCourses();
+  const course = getCourse(courseId!);
   const [showNewLectureModal, setShowNewLectureModal] = useState(false);
-  const [lectures, setLectures] = useState(course?.lectures || []);
   const [newLecture, setNewLecture] = useState({
     title: "",
     duration: "",
@@ -163,17 +77,17 @@ const CourseDetails = () => {
   };
 
   const addNewLecture = () => {
-    if (!newLecture.title.trim() || !newLecture.duration.trim()) return;
+    if (!newLecture.title.trim() || !newLecture.duration.trim() || !courseId) return;
 
-    const lecture = {
-      id: lectures.length + 1,
+    const lecture: Lecture = {
+      id: (course?.lectures?.length || 0) + 1,
       title: newLecture.title,
       duration: newLecture.duration,
-      status: "current" as const, // Set new lectures as current so they can be started
+      status: "upcoming" as const, // Initial status, will be set correctly in context
       pdfFile: newLecture.pdfFile
     };
 
-    setLectures(prev => [...prev, lecture]);
+    addLectureToCourse(courseId, lecture);
     
     // Clean up the object URL to prevent memory leaks
     if (newLecture.pdfUrl) {
@@ -184,8 +98,16 @@ const CourseDetails = () => {
     setShowNewLectureModal(false);
   };
 
-  const deleteLecture = (lectureId: number) => {
-    setLectures(prev => prev.filter(lecture => lecture.id !== lectureId));
+  const handleDeleteLecture = (lectureId: number) => {
+    if (courseId) {
+      deleteLecture(courseId, lectureId);
+    }
+  };
+
+  const handleUncompleteLecture = (lectureId: number) => {
+    if (courseId) {
+      uncompleteLecture(courseId, lectureId);
+    }
   };
 
   // PDF processing functions
@@ -413,64 +335,122 @@ const CourseDetails = () => {
         </Button>
       </div>
       <div className="flex-1 overflow-y-auto pr-2">
-        <div className="space-y-3">
-          {lectures.map((lecture, index) => (
-            <Card
-              key={lecture.id}
-              className={cn(
-                "rounded-2xl border-0 transition-all group",
-                lecture.status === "current" ? "bg-primary/5" : "bg-muted/50",
-                lecture.status === "completed" && "opacity-60"
-              )}
-            >
-              <CardContent className="p-4 flex items-center gap-4">
-                {getStatusIcon(lecture.status)}
-                <div className="flex-1">
-                  <p className="font-semibold text-foreground">
-                    {index + 1}. {lecture.title}
-                  </p>
-                  <p className="text-sm text-muted-foreground">{lecture.duration}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  {lecture.status === "current" && (
-                    <Button 
-                      asChild
-                      className="rounded-xl"
-                    >
-                      <Link 
-                        to={`/courses/${courseId}/lecture/${lecture.id}`}
-                        state={{ 
-                          lecture: {
-                            ...lecture,
-                            course: {
-                              title: course.title,
-                              instructor: course.instructor,
-                              id: courseId
-                            }
-                          }
-                        }}
+        {course?.lectures && course.lectures.length > 0 ? (
+          <div className="space-y-3">
+            {course.lectures.map((lecture, index) => (
+              <Card
+                key={lecture.id}
+                className={cn(
+                  "rounded-2xl border-0 transition-all group",
+                  lecture.status === "current" ? "bg-primary/5" : "bg-muted/50",
+                  lecture.status === "completed" && "opacity-60"
+                )}
+              >
+                <CardContent className="p-4 flex items-center gap-4">
+                  {getStatusIcon(lecture.status)}
+                  <div className="flex-1">
+                    <p className="font-semibold text-foreground">
+                      {index + 1}. {lecture.title}
+                    </p>
+                    <p className="text-sm text-muted-foreground">{lecture.duration}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {(lecture.status === "current" || lecture.status === "upcoming") && (
+                      <Button 
+                        asChild
+                        className="rounded-xl"
+                        disabled={lecture.status === "upcoming"}
                       >
-                        Start Lecture
-                      </Link>
-                    </Button>
-                  )}
-                  {/* Delete Button */}
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      deleteLecture(lecture.id);
-                    }}
-                    className="p-2 rounded-full bg-red-500/10 hover:bg-red-500/20 text-red-500 transition-all duration-200 opacity-0 group-hover:opacity-100"
-                    title="Delete Lecture"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                        <Link 
+                          to={`/courses/${courseId}/lecture/${lecture.id}`}
+                          state={{ 
+                            lecture: {
+                              ...lecture,
+                              course: {
+                                title: course.title,
+                                instructor: course.instructor,
+                                id: courseId
+                              }
+                            }
+                          }}
+                        >
+                          {lecture.status === "upcoming" ? "Not Available" : "Start Lecture"}
+                        </Link>
+                      </Button>
+                    )}
+                    {lecture.status === "completed" && (
+                      <>
+                        <Button 
+                          asChild
+                          variant="outline"
+                          className="rounded-xl"
+                        >
+                          <Link 
+                            to={`/courses/${courseId}/lecture/${lecture.id}`}
+                            state={{ 
+                              lecture: {
+                                ...lecture,
+                                course: {
+                                  title: course.title,
+                                  instructor: course.instructor,
+                                  id: courseId
+                                }
+                              }
+                            }}
+                          >
+                            Review Lecture
+                          </Link>
+                        </Button>
+                        <Button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleUncompleteLecture(lecture.id);
+                          }}
+                          variant="outline"
+                          size="sm"
+                          className="rounded-xl border-orange-200 text-orange-600 hover:bg-orange-50"
+                          title="Mark as incomplete"
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </>
+                    )}
+                    {/* Delete Button */}
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleDeleteLecture(lecture.id);
+                      }}
+                      className="p-2 rounded-full bg-red-500/10 hover:bg-red-500/20 text-red-500 transition-all duration-200 opacity-0 group-hover:opacity-100"
+                      title="Delete Lecture"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-64 text-center">
+            <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mb-4">
+              <Clapperboard className="w-10 h-10 text-muted-foreground" />
+            </div>
+            <h3 className="text-xl font-semibold text-foreground mb-2">No Lectures Yet</h3>
+            <p className="text-muted-foreground mb-6 max-w-sm">
+              Get started by creating your first lecture. You can upload PDFs and set durations to build your course content.
+            </p>
+            <Button
+              onClick={() => setShowNewLectureModal(true)}
+              className="bg-black hover:bg-gray-800 text-white rounded-2xl px-8 py-3"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Create Your First Lecture
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Add Lecture Modal */}

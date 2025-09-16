@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AssignmentsProvider } from "@/contexts/AssignmentsContext";
 import { CalendarEventsProvider } from "@/contexts/CalendarEventsContext";
+import { CoursesProvider } from "@/contexts/CoursesContext";
 import MainLayout from "./components/MainLayout"; // Import the new MainLayout
 import Dashboard from "./pages/Dashboard"; // Renamed from Index
 import Calendar from "./pages/Calendar";
@@ -19,9 +20,10 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <AssignmentsProvider>
-      <CalendarEventsProvider>
-        <TooltipProvider>
+    <CoursesProvider>
+      <AssignmentsProvider>
+        <CalendarEventsProvider>
+          <TooltipProvider>
           <Toaster />
           <Sonner />
           <BrowserRouter>
@@ -48,6 +50,7 @@ const App = () => (
         </TooltipProvider>
       </CalendarEventsProvider>
     </AssignmentsProvider>
+    </CoursesProvider>
   </QueryClientProvider>
 );
 

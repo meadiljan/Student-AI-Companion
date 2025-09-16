@@ -16,10 +16,14 @@ import {
   List,
   Type,
   Highlighter,
-  StickyNote
+  StickyNote,
+  CheckCircle2,
+  X
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import * as pdfjsLib from 'pdfjs-dist';
+import { useCourses } from "@/contexts/CoursesContext";
+import { useToast } from "@/hooks/use-toast";
 
 // Configure PDF.js worker
 if (typeof window !== 'undefined') {
@@ -70,9 +74,14 @@ const LecturePage = () => {
   const { courseId, lectureId } = useParams<{ courseId: string; lectureId: string }>();
   const location = useLocation();
   const navigate = useNavigate();
+  const { completeLecture, uncompleteLecture, getCourse } = useCourses();
+  const { toast } = useToast();
   
   // Get lecture data from navigation state or use fallback
   const lectureData: LectureData = location.state?.lecture || mockLectureData;
+  const course = getCourse(courseId!);
+  const currentLecture = course?.lectures?.find(l => l.id === parseInt(lectureId!));
+  const isLectureCompleted = currentLecture?.status === "completed";
   
   const [notes, setNotes] = useState<Note[]>([]);
   const [currentNote, setCurrentNote] = useState("");
@@ -159,11 +168,76 @@ const LecturePage = () => {
     setNotes(prev => prev.filter(note => note.id !== noteId));
   };
 
-  const saveNotes = async () => {
+  const handleCompleteLecture = async () => {
+    if (!courseId || !lectureId) return;
+    
     setIsSaving(true);
-    // Simulate saving
+    // Simulate saving notes
     await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Mark lecture as completed
+    completeLecture(courseId, parseInt(lectureId));
+    
     setIsSaving(false);
+    
+    // Find the next available lecture
+    const currentLectureIndex = course?.lectures?.findIndex(l => l.id === parseInt(lectureId)) || -1;
+    const nextLecture = course?.lectures?.[currentLectureIndex + 1];
+    
+    if (nextLecture && nextLecture.status === "current") {
+      // Show toast notification about auto-navigation
+      toast({
+        title: "Lecture Completed! 🎉",
+        description: `Moving to next lecture: "${nextLecture.title}"`
+      });
+      
+      // Navigate to the next lecture if it's available
+      navigate(`/courses/${courseId}/lecture/${nextLecture.id}`, {
+        state: {
+          lecture: {
+            ...nextLecture,
+            course: {
+              title: course.title,
+              instructor: course.instructor,
+              id: courseId
+            }
+          }
+        }
+      });
+    } else {
+      // Show completion toast when course is finished
+      const totalLectures = course?.lectures?.length || 0;
+      const completedLectures = (course?.lectures?.filter(l => l.status === "completed").length || 0) + 1; // +1 for current completion
+      
+      toast({
+        title: completedLectures === totalLectures ? "Course Completed! 🎊" : "Lecture Completed! 🎉",
+        description: completedLectures === totalLectures 
+          ? `Congratulations! You've completed all ${totalLectures} lectures in "${course?.title}"` 
+          : `Lecture completed successfully. ${completedLectures}/${totalLectures} lectures done.`
+      });
+      
+      // Navigate back to course details if no next lecture or course completed
+      navigate(`/courses/${courseId}`);
+    }
+  };
+
+  const handleUncompleteLecture = async () => {
+    if (!courseId || !lectureId) return;
+    
+    setIsSaving(true);
+    // Simulate processing
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Mark lecture as uncompleted (current)
+    uncompleteLecture(courseId, parseInt(lectureId));
+    
+    setIsSaving(false);
+    
+    // Show toast notification
+    toast({
+      title: "Lecture Marked as Incomplete ↩️",
+      description: "You can now retake this lecture and continue from here."
+    });
   };
 
   const downloadNotes = () => {
@@ -240,14 +314,44 @@ const LecturePage = () => {
           
           <div className="flex items-center gap-3">
             <Button
-              onClick={saveNotes}
-              disabled={isSaving || notes.length === 0}
+              onClick={downloadNotes}
+              disabled={notes.length === 0}
               variant="outline"
               className="rounded-2xl"
             >
-              <Save className="w-4 h-4 mr-2" />
-              {isSaving ? "Saving..." : "Save Notes"}
+              <Download className="w-4 h-4 mr-2" />
+              Download Notes
             </Button>
+            {isLectureCompleted ? (
+              <Button
+                onClick={handleUncompleteLecture}
+                disabled={isSaving}
+                variant="outline"
+                className="rounded-2xl border-orange-200 text-orange-600 hover:bg-orange-50"
+              >
+                <X className="w-4 h-4 mr-2" />
+                {isSaving ? "Processing..." : "Uncomplete Lecture"}
+              </Button>
+            ) : (
+              <Button
+                onClick={handleCompleteLecture}
+                disabled={isSaving}
+                className="rounded-2xl bg-black hover:bg-gray-800 text-white"
+              >
+                <CheckCircle2 className="w-4 h-4 mr-2" />
+                {(() => {
+                  if (isSaving) return "Completing...";
+                  
+                  // Check if there's a next lecture
+                  const currentLectureIndex = course?.lectures?.findIndex(l => l.id === parseInt(lectureId!)) || -1;
+                  const nextLecture = course?.lectures?.[currentLectureIndex + 1];
+                  
+                  return nextLecture && nextLecture.status === "upcoming" 
+                    ? "Complete & Continue" 
+                    : "Complete Lecture";
+                })()}
+              </Button>
+            )}
           </div>
         </div>
       </div>

@@ -3,7 +3,7 @@
 import React from "react";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { Trash2 } from "lucide-react";
+import { Trash2, CheckCircle2 } from "lucide-react";
 import * as Icons from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -57,8 +57,20 @@ const CourseCard: React.FC<CourseCardProps> = ({ id, title, instructor, progress
           </div>
           <Progress value={progress} className="h-2" />
         </div>
-        <Button variant="default" className="w-full mt-6 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90">
-          Continue Learning
+        <Button variant="default" className={cn(
+          "w-full mt-6 rounded-xl text-primary-foreground transition-all",
+          progress === 100 
+            ? "bg-green-600 hover:bg-green-700" 
+            : "bg-primary hover:bg-primary/90"
+        )}>
+          {progress === 100 ? (
+            <>
+              <CheckCircle2 className="w-4 h-4 mr-2" />
+              Course Completed
+            </>
+          ) : (
+            "Continue Learning"
+          )}
         </Button>
       </div>
     </div>

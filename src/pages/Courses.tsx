@@ -7,69 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, Plus, X } from "lucide-react";
 import * as Icons from "lucide-react";
+import { useCourses, Course } from "@/contexts/CoursesContext";
 
-type Course = {
-  id: string;
-  title: string;
-  instructor: string;
-  progress: number;
-  icon: keyof typeof Icons;
-  color: string;
-};
 
-const initialCoursesData: Course[] = [
-  {
-    id: "advanced-typography",
-    title: "Advanced Typography",
-    instructor: "Prof. Elara Vance",
-    progress: 75,
-    icon: "Type",
-    color: "bg-blue-500",
-  },
-  {
-    id: "ux-for-mobile",
-    title: "UX for Mobile",
-    instructor: "Dr. Arion Quinn",
-    progress: 40,
-    icon: "Smartphone",
-    color: "bg-purple-500",
-  },
-  {
-    id: "digital-illustration",
-    title: "Digital Illustration",
-    instructor: "Aria Beaumont",
-    progress: 90,
-    icon: "PenTool",
-    color: "bg-pink-500",
-  },
-  {
-    id: "web-development",
-    title: "Web Development",
-    instructor: "Prof. Leo Rivera",
-    progress: 60,
-    icon: "Code",
-    color: "bg-green-500",
-  },
-  {
-    id: "art-history",
-    title: "Art History",
-    instructor: "Dr. Helena Shaw",
-    progress: 25,
-    icon: "Landmark",
-    color: "bg-orange-500",
-  },
-  {
-    id: "calculus-i",
-    title: "Calculus I",
-    instructor: "Prof. Kenji Tanaka",
-    progress: 85,
-    icon: "Sigma",
-    color: "bg-red-500",
-  },
-];
 
 const Courses = () => {
-  const [courses, setCourses] = useState<Course[]>(initialCoursesData);
+  const { courses, addCourse, deleteCourse } = useCourses();
   const [showNewCourseModal, setShowNewCourseModal] = useState(false);
   const [newCourse, setNewCourse] = useState({
     title: "",
@@ -87,17 +30,16 @@ const Courses = () => {
       instructor: newCourse.instructor,
       progress: 0,
       icon: newCourse.icon,
-      color: newCourse.color
+      color: newCourse.color,
+      lectures: [] // Initialize with empty lectures array
     };
 
-    setCourses(prev => [...prev, course]);
+    addCourse(course);
     setNewCourse({ title: "", instructor: "", icon: "Book", color: "bg-blue-500" });
     setShowNewCourseModal(false);
   };
 
-  const deleteCourse = (courseId: string) => {
-    setCourses(prev => prev.filter(course => course.id !== courseId));
-  };
+
 
   const iconOptions: (keyof typeof Icons)[] = [
     "Book", "Code", "PenTool", "Smartphone", "Type", "Landmark", 
