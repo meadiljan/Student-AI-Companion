@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAssignments, Assignment } from "@/contexts/AssignmentsContext";
+import { useCourses } from "@/contexts/CoursesContext";
 
 const Assignments = () => {
   const { 
@@ -37,6 +38,7 @@ const Assignments = () => {
     toggleCompleted, 
     toggleStarred 
   } = useAssignments();
+  const { courses } = useCourses();
   const [showNewAssignment, setShowNewAssignment] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFilter, setSelectedFilter] = useState<"all" | "pending" | "completed" | "overdue" | "starred">("all");
@@ -52,11 +54,13 @@ const Assignments = () => {
   // Calendar and time picker states (matching calendar component)
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimeDropdown, setShowTimeDropdown] = useState(false);
+  const [showCourseDropdown, setShowCourseDropdown] = useState(false);
   const [calendarDate, setCalendarDate] = useState(new Date());
 
   // Refs for dropdown elements
   const datePickerRef = useRef<HTMLDivElement>(null);
   const timeDropdownRef = useRef<HTMLDivElement>(null);
+  const courseDropdownRef = useRef<HTMLDivElement>(null);
 
   // Generate time options exactly like calendar
   const generateTimeOptions = () => {
@@ -99,13 +103,19 @@ const Assignments = () => {
           !timeDropdownRef.current.contains(target)) {
         setShowTimeDropdown(false);
       }
+      
+      // Check if click is outside course dropdown
+      if (showCourseDropdown && courseDropdownRef.current && 
+          !courseDropdownRef.current.contains(target)) {
+        setShowCourseDropdown(false);
+      }
     };
 
-    if (showDatePicker || showTimeDropdown) {
+    if (showDatePicker || showTimeDropdown || showCourseDropdown) {
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
-  }, [showDatePicker, showTimeDropdown]);
+  }, [showDatePicker, showTimeDropdown, showCourseDropdown]);
 
   // Helper function to format date as YYYY-MM-DD without timezone conversion
   const formatDateString = (date: Date) => {
@@ -470,12 +480,54 @@ const Assignments = () => {
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">Course</label>
-                  <Input
-                    placeholder="Enter course name"
-                    value={newAssignment.course}
-                    onChange={(e) => setNewAssignment(prev => ({ ...prev, course: e.target.value }))}
-                    className="rounded-2xl border-gray-200 bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-black focus:border-transparent h-12"
-                  />
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setShowCourseDropdown(!showCourseDropdown)}
+                      className="w-full p-3 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-black focus:border-transparent text-left bg-white/80 backdrop-blur-sm hover:bg-white/90 flex items-center justify-between"
+                    >
+                      <span className={newAssignment.course ? "text-gray-900" : "text-gray-500"}>
+                        {newAssignment.course || "Select course"}
+                      </span>
+                      <ChevronDown className="w-4 h-4 text-gray-400" />
+                    </button>
+                    
+                    {showCourseDropdown && (
+                      <div 
+                        ref={courseDropdownRef}
+                        className="absolute z-50 mt-1 w-full bg-white/95 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl max-h-48 overflow-y-auto scrollbar-hide"
+                      >
+                        <div className="p-2">
+                          {courses.length > 0 ? (
+                            courses.map((course) => (
+                              <button
+                                key={course.id}
+                                type="button"
+                                onClick={() => {
+                                  setNewAssignment(prev => ({ ...prev, course: course.title }));
+                                  setShowCourseDropdown(false);
+                                }}
+                                className={cn(
+                                  "w-full flex items-center px-3 py-2.5 rounded-xl text-left hover:bg-gray-100 transition-colors",
+                                  newAssignment.course === course.title && "bg-black text-white hover:bg-gray-800"
+                                )}
+                              >
+                                <div className={cn("w-3 h-3 rounded-full mr-3", course.color)} />
+                                <div className="flex-1">
+                                  <div className="font-medium">{course.title}</div>
+                                  <div className="text-xs text-gray-500 truncate">{course.instructor}</div>
+                                </div>
+                              </button>
+                            ))
+                          ) : (
+                            <div className="px-3 py-2.5 text-sm text-gray-500 text-center">
+                              No courses available
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
               
