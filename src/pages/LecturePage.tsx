@@ -303,7 +303,7 @@ const LecturePage = () => {
             <Button 
               asChild 
               variant="ghost" 
-              className="rounded-2xl"
+              className="rounded-2xl border border-gray-200 hover:border-gray-300"
             >
               <Link to={`/courses/${courseId}`}>
                 <ArrowLeft className="mr-2 h-4 w-4" />

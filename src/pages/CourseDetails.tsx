@@ -297,7 +297,7 @@ const CourseDetails = () => {
   return (
     <div className="flex h-full flex-col p-6">
       <div className="mb-6">
-        <Button asChild variant="ghost" className="mb-4 -ml-4">
+        <Button asChild variant="ghost" className="mb-4 -ml-4 border border-gray-200 hover:border-gray-300 rounded-2xl">
           <Link to="/courses">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Courses
