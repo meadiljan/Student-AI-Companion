@@ -18,7 +18,8 @@ import {
   Highlighter,
   StickyNote,
   CheckCircle2,
-  RotateCcw
+  RotateCcw,
+  X
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import * as pdfjsLib from 'pdfjs-dist';
@@ -92,6 +93,8 @@ const LecturePage = () => {
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
+  const [selectedNote, setSelectedNote] = useState<Note | null>(null);
+  const [showNoteDialog, setShowNoteDialog] = useState(false);
 
   // Process PDF file and create URL for viewing
   useEffect(() => {
@@ -261,7 +264,7 @@ const LecturePage = () => {
       case 'important':
         return 'bg-red-50 border-red-200 text-red-800';
       default:
-        return 'bg-blue-50 border-blue-200 text-blue-800';
+        return 'bg-gray-50 border-gray-200 text-gray-800';
     }
   };
 
@@ -274,6 +277,21 @@ const LecturePage = () => {
       default:
         return <Type className="w-4 h-4" />;
     }
+  };
+
+  const truncateText = (text: string, maxLength: number = 150) => {
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + '...';
+  };
+
+  const openNoteDialog = (note: Note) => {
+    setSelectedNote(note);
+    setShowNoteDialog(true);
+  };
+
+  const closeNoteDialog = () => {
+    setSelectedNote(null);
+    setShowNoteDialog(false);
   };
 
   return (
@@ -411,17 +429,17 @@ const LecturePage = () => {
         </div>
 
         {/* Notes Section */}
-        <div className="w-96 flex flex-col">
-          <Card className="flex-1 rounded-3xl border-0 bg-white shadow-lg">
+        <div className="w-96 flex flex-col h-full">
+          <Card className="flex-1 rounded-3xl border-0 bg-white shadow-lg h-full flex flex-col">
             <CardContent className="p-0 h-full flex flex-col">
               {/* Notes Header */}
-              <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 rounded-t-3xl">
+              <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 rounded-t-3xl flex-shrink-0">
                 <h3 className="font-semibold text-gray-900 text-lg">Lecture Notes</h3>
                 <p className="text-sm text-gray-600">{notes.length} notes</p>
               </div>
 
               {/* Note Input */}
-              <div className="p-6 border-b border-gray-200">
+              <div className="p-6 border-b border-gray-200 flex-shrink-0">
                 <div className="space-y-4">
                   {/* Note Type Selector */}
                   <div className="flex gap-2">
@@ -467,57 +485,143 @@ const LecturePage = () => {
                 </div>
               </div>
 
-              {/* Notes List */}
-              <div className="flex-1 overflow-y-auto p-6">
-                <div className="space-y-4">
-                  {notes.length === 0 ? (
-                    <div className="text-center py-12">
-                      <StickyNote className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                      <p className="text-gray-500 font-medium">No notes yet</p>
-                      <p className="text-sm text-gray-400">Start taking notes as you study</p>
-                    </div>
-                  ) : (
-                    notes.map((note) => (
-                      <div
-                        key={note.id}
-                        className={cn(
-                          "p-4 rounded-2xl border-2 relative group",
-                          getNoteTypeStyle(note.type)
-                        )}
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className="flex-shrink-0 mt-1">
-                            {getNoteTypeIcon(note.type)}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm leading-relaxed">{note.content}</p>
-                            <div className="flex items-center justify-between mt-2">
-                              <p className="text-xs opacity-70">
-                                {note.timestamp.toLocaleTimeString()}
-                              </p>
-                              {note.pageNumber && (
-                                <span className="text-xs opacity-70">
-                                  Page {note.pageNumber}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <button
-                            onClick={() => deleteNote(note.id)}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-lg hover:bg-white/50"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
+              {/* Notes List - Fixed Height with Scrollbar */}
+              <div className="flex-1 min-h-0">
+                <div className="h-full overflow-y-auto scrollbar-hide p-6">
+                  <div className="space-y-4">
+                    {notes.length === 0 ? (
+                      <div className="text-center py-12">
+                        <StickyNote className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                        <p className="text-gray-500 font-medium">No notes yet</p>
+                        <p className="text-sm text-gray-400">Start taking notes as you study</p>
                       </div>
-                    ))
-                  )}
+                    ) : (
+                      notes.map((note) => (
+                        <div
+                          key={note.id}
+                          className={cn(
+                            "p-4 rounded-2xl border-2 relative group transition-all duration-200 hover:shadow-md",
+                            getNoteTypeStyle(note.type)
+                          )}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="flex-shrink-0 mt-1">
+                              {getNoteTypeIcon(note.type)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div 
+                                className="text-sm leading-relaxed cursor-pointer hover:opacity-80 transition-opacity"
+                                onClick={() => openNoteDialog(note)}
+                                title="Click to view full note"
+                              >
+                                {truncateText(note.content)}
+                              </div>
+                              <div className="flex items-center justify-between mt-3 pt-2 border-t border-current/10">
+                                <p className="text-xs opacity-70 font-medium">
+                                  {note.timestamp.toLocaleTimeString()}
+                                </p>
+                                {note.pageNumber && (
+                                  <span className="text-xs opacity-70 font-medium">
+                                    Page {note.pageNumber}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => deleteNote(note.id)}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg hover:bg-white/50 flex-shrink-0"
+                              title="Delete note"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
       </div>
+
+      {/* Note Detail Dialog */}
+      {showNoteDialog && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white/95 backdrop-blur-xl rounded-3xl p-8 w-full max-w-2xl mx-4 shadow-2xl border border-white/20">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-black flex items-center gap-3">
+                {selectedNote && (
+                  <div className={cn(
+                    "p-2 rounded-xl",
+                    selectedNote.type === 'highlight' && "bg-yellow-100",
+                    selectedNote.type === 'important' && "bg-red-100",
+                    selectedNote.type === 'text' && "bg-black/10"
+                  )}>
+                    {getNoteTypeIcon(selectedNote.type)}
+                  </div>
+                )}
+                <span className="capitalize">{selectedNote?.type} Note</span>
+              </h2>
+              <button
+                onClick={closeNoteDialog}
+                className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
+            
+            {selectedNote && (
+              <div className="space-y-6">
+                {/* Note Content */}
+                <div className={cn(
+                  "p-6 rounded-2xl border-2 max-h-[60vh] overflow-y-auto scrollbar-hide",
+                  getNoteTypeStyle(selectedNote.type)
+                )}>
+                  <div className="text-sm leading-relaxed whitespace-pre-wrap break-words">
+                    {selectedNote.content}
+                  </div>
+                </div>
+                
+                {/* Note Metadata */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-white/80 backdrop-blur-sm p-4 rounded-2xl border border-gray-200">
+                    <div className="text-sm font-medium text-gray-700 mb-1">Created</div>
+                    <div className="text-sm text-gray-900">{selectedNote.timestamp.toLocaleString()}</div>
+                  </div>
+                  {selectedNote.pageNumber && (
+                    <div className="bg-white/80 backdrop-blur-sm p-4 rounded-2xl border border-gray-200">
+                      <div className="text-sm font-medium text-gray-700 mb-1">Page Reference</div>
+                      <div className="text-sm text-gray-900">Page {selectedNote.pageNumber}</div>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Actions */}
+                <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                  <button
+                    onClick={() => {
+                      deleteNote(selectedNote.id);
+                      closeNoteDialog();
+                    }}
+                    className="px-6 py-3 text-red-600 border border-red-200 hover:bg-red-50 rounded-2xl transition-colors font-medium"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2 inline" />
+                    Delete Note
+                  </button>
+                  <button
+                    onClick={closeNoteDialog}
+                    className="bg-black hover:bg-gray-800 text-white rounded-2xl px-6 py-3 font-medium transition-colors"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
