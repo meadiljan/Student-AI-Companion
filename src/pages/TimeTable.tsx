@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { X, Plus, Clock, MapPin, Trash2 } from "lucide-react";
 import { useCourses } from "@/contexts/CoursesContext";
 import { useCalendarEvents } from "@/contexts/CalendarEventsContext";
+import { useToast } from "@/hooks/use-toast";
 
 interface TimeSlot {
   id: string;
@@ -19,6 +20,9 @@ interface TimeSlot {
   color: string;
   type: 'lecture' | 'lab' | 'tutorial' | 'exam';
   totalOverlapping?: number; // Added for overlap information
+  // Track sync status
+  isSynced?: boolean;
+  calendarEventId?: number;
 }
 
 interface TimeTableProps {
@@ -28,7 +32,8 @@ interface TimeTableProps {
 
 const TimeTable: React.FC<TimeTableProps> = ({ isOpen, onClose }) => {
   const { courses } = useCourses();
-  const { addEvent } = useCalendarEvents();
+  const { addEvent, updateEvent } = useCalendarEvents();
+  const { toast } = useToast();
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [showAddSlotModal, setShowAddSlotModal] = useState(false);
   const [editingSlot, setEditingSlot] = useState<TimeSlot | null>(null);
@@ -49,6 +54,17 @@ const TimeTable: React.FC<TimeTableProps> = ({ isOpen, onClose }) => {
     endTime: "10:00 AM",
     type: "lecture" as 'lecture' | 'lab' | 'tutorial' | 'exam'
   });
+  
+  // Sync progress state
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncProgress, setSyncProgress] = useState(0);
+  
+  // Save time slots to localStorage whenever they change
+  useEffect(() => {
+    if (timeSlots.length > 0) {
+      localStorage.setItem('timetableSlots', JSON.stringify(timeSlots));
+    }
+  }, [timeSlots]);
 
   // Time slots configuration
   const timeSlotHours = Array.from({ length: 15 }, (_, i) => i + 7); // 7 AM to 9 PM
@@ -108,34 +124,64 @@ const TimeTable: React.FC<TimeTableProps> = ({ isOpen, onClose }) => {
 
   // Initialize with sample data from courses when component mounts
   useEffect(() => {
-    if (courses.length > 0 && timeSlots.length === 0) {
-      const sampleSchedule = [
-        { day: 0, startTime: "09:30", endTime: "11:00", type: 'lecture' as const }, // 1.5 hours - Monday
-        { day: 0, startTime: "10:00", endTime: "10:30", type: 'tutorial' as const }, // 30 min - Monday
-        { day: 1, startTime: "14:15", endTime: "16:45", type: 'lab' as const },     // 2.5 hours - Tuesday
-        { day: 2, startTime: "08:30", endTime: "09:00", type: 'lecture' as const }, // 30 min - Wednesday
-        { day: 2, startTime: "09:00", endTime: "10:00", type: 'tutorial' as const }, // 1 hour - Wednesday
-        { day: 2, startTime: "09:30", endTime: "09:45", type: 'lab' as const },      // 15 min - Wednesday
-        { day: 4, startTime: "13:30", endTime: "15:00", type: 'lecture' as const }, // 1.5 hours - Friday
-      ];
-
-      const initialSlots = courses.slice(0, Math.min(courses.length, 7)).map((course, index) => {
-        const schedule = sampleSchedule[index] || sampleSchedule[0];
-        return {
-          id: `${course.id}-${Date.now()}-${index}`,
-          courseId: course.id,
-          courseName: course.title,
-          instructor: course.instructor,
-          location: `Room ${Math.floor(Math.random() * 200) + 100}`,
-          day: schedule.day,
-          startTime: schedule.startTime,
-          endTime: schedule.endTime,
-          color: course.color,
-          type: schedule.type
-        };
-      });
+    if (courses.length > 0) { // Remove the timeSlots.length === 0 condition to always check localStorage
+      // Check if we have saved timetable data in localStorage
+      const savedTimeSlots = localStorage.getItem('timetableSlots');
+      if (savedTimeSlots) {
+        try {
+          const parsedSlots = JSON.parse(savedTimeSlots);
+          // Validate that the parsed slots have the required properties
+          const validSlots = parsedSlots.filter((slot: TimeSlot) => 
+            slot.id && 
+            slot.courseId && 
+            courses.some(course => course.id === slot.courseId)
+          ).map((slot: TimeSlot) => ({
+            ...slot,
+            // Ensure sync status properties exist
+            isSynced: slot.isSynced ?? false,
+            calendarEventId: slot.calendarEventId ?? undefined
+          }));
+          
+          setTimeSlots(validSlots);
+          return;
+        } catch (e) {
+          // If parsing fails, fall back to sample data
+          console.warn('Failed to parse saved timetable slots, using sample data');
+        }
+      }
       
-      setTimeSlots(initialSlots);
+      // Only initialize with sample data if there are no saved slots
+      if (!savedTimeSlots || timeSlots.length === 0) {
+        const sampleSchedule = [
+          { day: 0, startTime: "09:30", endTime: "11:00", type: 'lecture' as const }, // 1.5 hours - Monday
+          { day: 0, startTime: "10:00", endTime: "10:30", type: 'tutorial' as const }, // 30 min - Monday
+          { day: 1, startTime: "14:15", endTime: "16:45", type: 'lab' as const },     // 2.5 hours - Tuesday
+          { day: 2, startTime: "08:30", endTime: "09:00", type: 'lecture' as const }, // 30 min - Wednesday
+          { day: 2, startTime: "09:00", endTime: "10:00", type: 'tutorial' as const }, // 1 hour - Wednesday
+          { day: 2, startTime: "09:30", endTime: "09:45", type: 'lab' as const },      // 15 min - Wednesday
+          { day: 4, startTime: "13:30", endTime: "15:00", type: 'lecture' as const }, // 1.5 hours - Friday
+        ];
+
+        const initialSlots = courses.slice(0, Math.min(courses.length, 7)).map((course, index) => {
+          const schedule = sampleSchedule[index] || sampleSchedule[0];
+          return {
+            id: `${course.id}-${Date.now()}-${index}`,
+            courseId: course.id,
+            courseName: course.title,
+            instructor: course.instructor,
+            location: `Room ${Math.floor(Math.random() * 200) + 100}`,
+            day: schedule.day,
+            startTime: schedule.startTime,
+            endTime: schedule.endTime,
+            color: course.color,
+            type: schedule.type,
+            // Initial slots are not synced
+            isSynced: false
+          };
+        });
+        
+        setTimeSlots(initialSlots);
+      }
     }
   }, [courses, timeSlots.length]);
 
@@ -174,7 +220,7 @@ const TimeTable: React.FC<TimeTableProps> = ({ isOpen, onClose }) => {
 
     const selectedCourse = courses.find(c => c.id === newSlot.courseId);
     const slot: TimeSlot = {
-      id: Date.now().toString(),
+      id: editingSlot ? editingSlot.id : Date.now().toString(),
       courseId: newSlot.courseId,
       courseName: newSlot.courseName,
       instructor: newSlot.instructor || selectedCourse?.instructor || "",
@@ -183,14 +229,28 @@ const TimeTable: React.FC<TimeTableProps> = ({ isOpen, onClose }) => {
       startTime: convertTo24Hour(newSlot.startTime),
       endTime: convertTo24Hour(newSlot.endTime),
       color: selectedCourse?.color || "bg-blue-500",
-      type: newSlot.type
+      type: newSlot.type,
+      // New slots are not synced initially
+      // For edited slots, preserve sync status
+      isSynced: editingSlot ? editingSlot.isSynced : false,
+      calendarEventId: editingSlot ? editingSlot.calendarEventId : undefined
     };
 
     if (editingSlot) {
-      setTimeSlots(prev => prev.map(s => s.id === editingSlot.id ? slot : s));
+      setTimeSlots(prev => {
+        const updatedSlots = prev.map(s => s.id === editingSlot.id ? slot : s);
+        // Save to localStorage
+        localStorage.setItem('timetableSlots', JSON.stringify(updatedSlots));
+        return updatedSlots;
+      });
       setEditingSlot(null);
     } else {
-      setTimeSlots(prev => [...prev, slot]);
+      setTimeSlots(prev => {
+        const updatedSlots = [...prev, slot];
+        // Save to localStorage
+        localStorage.setItem('timetableSlots', JSON.stringify(updatedSlots));
+        return updatedSlots;
+      });
     }
     
     setNewSlot({
@@ -207,7 +267,12 @@ const TimeTable: React.FC<TimeTableProps> = ({ isOpen, onClose }) => {
   };
 
   const deleteTimeSlot = (id: string) => {
-    setTimeSlots(prev => prev.filter(slot => slot.id !== id));
+    setTimeSlots(prev => {
+      const updatedSlots = prev.filter(slot => slot.id !== id);
+      // Save to localStorage
+      localStorage.setItem('timetableSlots', JSON.stringify(updatedSlots));
+      return updatedSlots;
+    });
   };
 
   const editTimeSlot = (slot: TimeSlot) => {
@@ -226,31 +291,156 @@ const TimeTable: React.FC<TimeTableProps> = ({ isOpen, onClose }) => {
   };
 
   const syncToCalendar = () => {
+    setIsSyncing(true);
+    setSyncProgress(0);
+    
     const today = new Date();
-    const currentWeekStart = new Date(today.setDate(today.getDate() - today.getDay() + 1));
+    // Get the Monday of the current week (0 = Sunday, 1 = Monday, etc.)
+    const dayOfWeek = today.getDay();
+    const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // If Sunday (0), go back 6 days; otherwise go back to Monday
+    const currentWeekStart = new Date(today);
+    currentWeekStart.setDate(today.getDate() + daysToMonday);
+    currentWeekStart.setHours(0, 0, 0, 0); // Set to start of day
 
-    timeSlots.forEach(slot => {
-      const eventDate = new Date(currentWeekStart);
-      eventDate.setDate(eventDate.getDate() + slot.day);
+    // Filter slots that need to be synced (not yet synced or have been modified)
+    const slotsToSync = timeSlots.filter(slot => !slot.isSynced);
+    const slotsToUpdate = timeSlots.filter(slot => slot.isSynced && slot.calendarEventId);
+    
+    const totalSlots = slotsToSync.length + slotsToUpdate.length;
+    
+    if (totalSlots === 0) {
+      // No new or updated slots to sync
+      setIsSyncing(false);
+      setSyncProgress(100);
       
-      const [startHour, startMinute] = slot.startTime.split(':').map(Number);
-      const [endHour, endMinute] = slot.endTime.split(':').map(Number);
-      
-      const formatTime = (hour: number, minute: number) => {
-        const period = hour >= 12 ? 'PM' : 'AM';
-        const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
-        return `${displayHour}:${minute.toString().padStart(2, '0')} ${period}`;
-      };
-
-      addEvent({
-        title: `${slot.courseName} - ${slot.type}`,
-        date: eventDate,
-        color: slot.color,
-        time: formatTime(startHour, startMinute),
-        startTime: formatTime(startHour, startMinute),
-        endTime: formatTime(endHour, endMinute)
+      toast({
+        title: "Sync Complete",
+        description: "All classes are already up to date.",
       });
-    });
+      
+      // Close the timetable manager after a short delay
+      setTimeout(() => {
+        onClose();
+      }, 1500);
+      return;
+    }
+    
+    let processedCount = 0;
+    
+    const formatTime = (hour: number, minute: number) => {
+      const period = hour >= 12 ? 'PM' : 'AM';
+      const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
+      return `${displayHour}:${minute.toString().padStart(2, '0')} ${period}`;
+    };
+    
+    // Process new slots to add
+    const processNewSlots = () => {
+      if (processedCount < slotsToSync.length) {
+        const slot = slotsToSync[processedCount];
+        const eventDate = new Date(currentWeekStart);
+        eventDate.setDate(eventDate.getDate() + slot.day);
+        
+        const [startHour, startMinute] = slot.startTime.split(':').map(Number);
+        const [endHour, endMinute] = slot.endTime.split(':').map(Number);
+
+        const newEvent = {
+          title: `${slot.courseName} - ${slot.type}`,
+          date: eventDate,
+          color: slot.color,
+          time: formatTime(startHour, startMinute),
+          startTime: formatTime(startHour, startMinute),
+          endTime: formatTime(endHour, endMinute)
+        };
+
+        // Add event and get the new event ID
+        const addedEvent = addEvent(newEvent);
+        
+        // Update slot status with the actual event ID
+        setTimeSlots(prev => {
+          const updatedSlots = prev.map(s => 
+            s.id === slot.id 
+              ? { ...s, isSynced: true, calendarEventId: addedEvent.id } 
+              : s
+          );
+          // Save to localStorage
+          localStorage.setItem('timetableSlots', JSON.stringify(updatedSlots));
+          return updatedSlots;
+        });
+        
+        processedCount++;
+        setSyncProgress(Math.round((processedCount / totalSlots) * 100));
+        
+        // Process next slot with a small delay for animation
+        setTimeout(processNewSlots, 100);
+      } else {
+        // Process updated slots
+        processUpdatedSlots();
+      }
+    };
+    
+    // Process updated slots
+    const processUpdatedSlots = () => {
+      if (processedCount < totalSlots) {
+        const slot = slotsToUpdate[processedCount - slotsToSync.length];
+        
+        // Update the existing calendar event
+        const eventDate = new Date(currentWeekStart);
+        eventDate.setDate(eventDate.getDate() + slot.day);
+        
+        const [startHour, startMinute] = slot.startTime.split(':').map(Number);
+        const [endHour, endMinute] = slot.endTime.split(':').map(Number);
+
+        const updatedEvent = {
+          title: `${slot.courseName} - ${slot.type}`,
+          date: eventDate,
+          color: slot.color,
+          time: formatTime(startHour, startMinute),
+          startTime: formatTime(startHour, startMinute),
+          endTime: formatTime(endHour, endMinute)
+        };
+        
+        // Update the calendar event
+        updateEvent(slot.calendarEventId!, updatedEvent);
+        
+        // Update slot status
+        setTimeSlots(prev => {
+          const updatedSlots = prev.map(s => 
+            s.id === slot.id ? { ...s, isSynced: true } : s
+          );
+          // Save to localStorage
+          localStorage.setItem('timetableSlots', JSON.stringify(updatedSlots));
+          return updatedSlots;
+        });
+        
+        processedCount++;
+        setSyncProgress(Math.round((processedCount / totalSlots) * 100));
+        
+        // Process next slot with a small delay for animation
+        setTimeout(processUpdatedSlots, 100);
+      } else {
+        // All slots processed
+        setIsSyncing(false);
+        
+        toast({
+          title: "Sync Complete",
+          description: `Successfully synced ${slotsToSync.length} new and ${slotsToUpdate.length} updated classes to your calendar!`,
+        });
+        
+        // Close the timetable manager after a short delay
+        setTimeout(() => {
+          onClose();
+        }, 1500);
+      }
+    };
+    
+    // Start processing
+    processNewSlots();
+  };
+
+  // Add a function to clear all timetable data
+  const clearTimetableData = () => {
+    localStorage.removeItem('timetableSlots');
+    setTimeSlots([]);
   };
 
   // Calculate event positions with improved overlap handling for multiple events
@@ -406,12 +596,27 @@ const TimeTable: React.FC<TimeTableProps> = ({ isOpen, onClose }) => {
     return Math.max(topInPixels, 0); // Ensure non-negative positioning
   };
 
+  // Save timetable data to localStorage whenever the component is about to close
+  useEffect(() => {
+    if (!isOpen && timeSlots.length > 0) {
+      localStorage.setItem('timetableSlots', JSON.stringify(timeSlots));
+    }
+  }, [isOpen, timeSlots]);
+
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[110] p-4">
       <Card className="w-full max-w-7xl max-h-[95vh] overflow-hidden rounded-3xl shadow-2xl relative z-10">
-        <CardHeader className="p-6 border-b bg-gradient-to-r from-blue-50 to-purple-50">
+        <CardHeader className="p-6 border-b bg-gradient-to-r from-blue-50 to-purple-50 relative">
+          {isSyncing && (
+            <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-200">
+              <div 
+                className="h-full bg-green-500 transition-all duration-300 ease-out"
+                style={{ width: `${syncProgress}%` }}
+              />
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="text-3xl font-bold text-gray-800 mb-2">TimeTable Manager</CardTitle>
@@ -420,17 +625,35 @@ const TimeTable: React.FC<TimeTableProps> = ({ isOpen, onClose }) => {
             <div className="flex items-center gap-3">
               <Button
                 onClick={syncToCalendar}
-                className="bg-green-500 hover:bg-green-600 text-white rounded-2xl px-4"
+                disabled={isSyncing}
+                className="bg-green-500 hover:bg-green-600 text-white rounded-2xl px-4 disabled:opacity-50"
               >
                 <Clock className="w-4 h-4 mr-2" />
-                Sync to Calendar
+                {isSyncing ? `Syncing... ${syncProgress}%` : 
+                 timeSlots.length > 0 && timeSlots.some(slot => slot.isSynced === true) ? "Update Calendar" : "Sync to Calendar"}
               </Button>
+              {isSyncing && (
+                <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-green-500 transition-all duration-300 ease-out"
+                    style={{ width: `${syncProgress}%` }}
+                  />
+                </div>
+              )}
               <Button
                 onClick={() => setShowAddSlotModal(true)}
                 className="bg-black hover:bg-gray-800 text-white rounded-2xl px-4"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Add Class
+              </Button>
+              {/* Hidden button for clearing timetable data - for testing purposes */}
+              <Button
+                onClick={clearTimetableData}
+                variant="outline"
+                className="rounded-2xl hidden"
+              >
+                Clear Data
               </Button>
               <Button
                 variant="outline"
@@ -560,7 +783,7 @@ const TimeTable: React.FC<TimeTableProps> = ({ isOpen, onClose }) => {
                             }
                           </div>
                         )}
-                        <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className={`absolute ${slot.durationMinutes <= 15 ? 'top-0 -mt-1' : 'top-1'} right-1 opacity-0 group-hover:opacity-100 transition-opacity`}>
                           <Button
                             variant="ghost"
                             size="sm"

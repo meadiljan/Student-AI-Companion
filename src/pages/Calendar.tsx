@@ -1766,7 +1766,8 @@ const Calendar = forwardRef<CalendarRef, CalendarProps>(({ onEventsChange }, ref
           style={{
             left: `${hoveredEvent.position.x}px`,
             top: `${hoveredEvent.position.y}px`,
-            transform: 'translateX(-50%)'
+            transform: 'translateY(-50%)',
+            zIndex: 99999
           }}
           onMouseEnter={handleTooltipMouseEnter}
           onMouseLeave={handleTooltipMouseLeave}

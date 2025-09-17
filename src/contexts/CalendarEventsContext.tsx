@@ -14,7 +14,7 @@ export interface CalendarEvent {
 
 interface CalendarEventsContextType {
   events: CalendarEvent[];
-  addEvent: (event: Omit<CalendarEvent, "id">) => void;
+  addEvent: (event: Omit<CalendarEvent, "id">) => CalendarEvent;
   updateEvent: (id: number, updates: Partial<CalendarEvent>) => void;
   deleteEvent: (id: number) => void;
 }
@@ -73,6 +73,7 @@ export const CalendarEventsProvider: React.FC<{ children: ReactNode }> = ({ chil
       id: Date.now(),
     };
     setEvents(prev => [...prev, newEvent]);
+    return newEvent;
   };
 
   const updateEvent = (id: number, updates: Partial<CalendarEvent>) => {
