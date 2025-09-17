@@ -18,6 +18,7 @@ interface TimeSlot {
   endTime: string;
   color: string;
   type: 'lecture' | 'lab' | 'tutorial' | 'exam';
+  totalOverlapping?: number; // Added for overlap information
 }
 
 interface TimeTableProps {
@@ -36,6 +37,8 @@ const TimeTable: React.FC<TimeTableProps> = ({ isOpen, onClose }) => {
   const [showStartTimeDropdown, setShowStartTimeDropdown] = useState(false);
   const [showEndTimeDropdown, setShowEndTimeDropdown] = useState(false);
   const [showTypeDropdown, setShowTypeDropdown] = useState(false);
+  const [hoveredSlot, setHoveredSlot] = useState<{slot: any, position: {x: number, y: number}} | null>(null);
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [newSlot, setNewSlot] = useState({
     courseId: "",
     courseName: "",
@@ -107,14 +110,16 @@ const TimeTable: React.FC<TimeTableProps> = ({ isOpen, onClose }) => {
   useEffect(() => {
     if (courses.length > 0 && timeSlots.length === 0) {
       const sampleSchedule = [
-        { day: 0, startTime: "09:00", endTime: "10:30", type: 'lecture' as const },
-        { day: 1, startTime: "11:00", endTime: "12:30", type: 'lecture' as const },
-        { day: 2, startTime: "14:00", endTime: "16:00", type: 'lab' as const },
-        { day: 3, startTime: "10:00", endTime: "11:30", type: 'lecture' as const },
-        { day: 4, startTime: "13:00", endTime: "14:30", type: 'tutorial' as const },
+        { day: 0, startTime: "09:30", endTime: "11:00", type: 'lecture' as const }, // 1.5 hours - Monday
+        { day: 0, startTime: "10:00", endTime: "11:30", type: 'tutorial' as const }, // Overlapping - Monday
+        { day: 1, startTime: "14:15", endTime: "16:45", type: 'lab' as const },     // 2.5 hours - Tuesday
+        { day: 2, startTime: "08:30", endTime: "10:00", type: 'lecture' as const }, // 1.5 hours - Wednesday
+        { day: 2, startTime: "09:00", endTime: "10:30", type: 'tutorial' as const }, // Overlapping - Wednesday
+        { day: 2, startTime: "09:30", endTime: "11:00", type: 'lab' as const },      // Triple overlap - Wednesday
+        { day: 4, startTime: "13:30", endTime: "15:00", type: 'lecture' as const }, // 1.5 hours - Friday
       ];
 
-      const initialSlots = courses.slice(0, 5).map((course, index) => {
+      const initialSlots = courses.slice(0, Math.min(courses.length, 7)).map((course, index) => {
         const schedule = sampleSchedule[index] || sampleSchedule[0];
         return {
           id: `${course.id}-${Date.now()}-${index}`,
@@ -154,6 +159,15 @@ const TimeTable: React.FC<TimeTableProps> = ({ isOpen, onClose }) => {
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [showCourseDropdown, showDayDropdown, showStartTimeDropdown, showEndTimeDropdown, showTypeDropdown]);
+
+  // Cleanup hover timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleAddTimeSlot = () => {
     if (!newSlot.courseName.trim()) return;
@@ -239,14 +253,86 @@ const TimeTable: React.FC<TimeTableProps> = ({ isOpen, onClose }) => {
     });
   };
 
-  const getSlotsForDayAndTime = (day: number, hour: number) => {
-    return timeSlots.filter(slot => {
-      const slotDay = slot.day;
-      const slotStartHour = parseInt(slot.startTime.split(':')[0]);
-      const slotEndHour = parseInt(slot.endTime.split(':')[0]);
+  // Calculate event positions with improved overlap handling for multiple events
+  const calculateSlotPositions = (dayIndex: number) => {
+    const daySlots = timeSlots.filter(slot => slot.day === dayIndex);
+    
+    if (daySlots.length === 0) return [];
+    
+    // Parse time and calculate minutes from start of day for sorting and overlap detection
+    const slotsWithMinutes = daySlots.map(slot => {
+      const parseTime = (timeStr: string) => {
+        if (timeStr.includes('AM') || timeStr.includes('PM')) {
+          const [time, period] = timeStr.split(' ');
+          const [hours, minutes] = time.split(':').map(Number);
+          let hour24 = hours;
+          if (period === 'PM' && hours !== 12) hour24 += 12;
+          if (period === 'AM' && hours === 12) hour24 = 0;
+          return { hour: hour24, minute: minutes || 0 };
+        } else {
+          const [hours, minutes] = timeStr.split(':').map(Number);
+          return { hour: hours, minute: minutes || 0 };
+        }
+      };
       
-      return slotDay === day && hour >= slotStartHour && hour < slotEndHour;
+      const startTime = parseTime(slot.startTime);
+      const endTime = parseTime(slot.endTime);
+      
+      return {
+        ...slot,
+        startMinutes: startTime.hour * 60 + startTime.minute,
+        endMinutes: endTime.hour * 60 + endTime.minute,
+        top: getSlotTop(slot),
+        height: getSlotHeight(slot)
+      };
     });
+    
+    // Sort by start time for proper overlap detection
+    slotsWithMinutes.sort((a, b) => a.startMinutes - b.startMinutes);
+    
+    // Calculate overlap groups and positions
+    const positionedSlots = slotsWithMinutes.map((slot, index) => {
+      // Find all overlapping slots
+      const overlappingSlots = slotsWithMinutes.filter(otherSlot => {
+        return (
+          slot.startMinutes < otherSlot.endMinutes &&
+          slot.endMinutes > otherSlot.startMinutes
+        );
+      });
+      
+      // Find slots that start before this one in the overlapping group
+      const precedingOverlaps = overlappingSlots.filter(otherSlot => {
+        const otherIndex = slotsWithMinutes.findIndex(s => s.id === otherSlot.id);
+        return otherIndex < index;
+      });
+      
+      const totalOverlapping = overlappingSlots.length;
+      const columnIndex = precedingOverlaps.length;
+      
+      // Calculate width and left offset
+      let widthPercent = 100;
+      let leftPercent = 0;
+      
+      if (totalOverlapping > 1) {
+        widthPercent = Math.max(100 / totalOverlapping, 25); // Minimum 25% width
+        leftPercent = columnIndex * widthPercent;
+        
+        // Ensure we don't exceed 100% width
+        if (leftPercent + widthPercent > 100) {
+          widthPercent = 100 - leftPercent;
+        }
+      }
+      
+      return {
+        ...slot,
+        widthPercent: Math.max(widthPercent - 2, 20), // Leave 2% margin, minimum 20%
+        leftPercent: leftPercent + 1, // 1% left margin
+        zIndex: Math.min(10 + columnIndex, 20), // Ensure proper layering, max z-20
+        totalOverlapping
+      };
+    });
+    
+    return positionedSlots;
   };
 
   const getSlotHeight = (slot: TimeSlot) => {
@@ -259,19 +345,29 @@ const TimeTable: React.FC<TimeTableProps> = ({ isOpen, onClose }) => {
         let hour24 = hours;
         if (period === 'PM' && hours !== 12) hour24 += 12;
         if (period === 'AM' && hours === 12) hour24 = 0;
-        return { hour: hour24, minute: minutes };
+        return { hour: hour24, minute: minutes || 0 };
       } else {
         // 24-hour format
         const [hours, minutes] = timeStr.split(':').map(Number);
-        return { hour: hours, minute: minutes };
+        return { hour: hours, minute: minutes || 0 };
       }
     };
     
     const startTime = parseTime(slot.startTime);
     const endTime = parseTime(slot.endTime);
     
-    const durationHours = (endTime.hour + endTime.minute / 60) - (startTime.hour + startTime.minute / 60);
-    return durationHours * 60; // 60px per hour
+    // Calculate total minutes for start and end times
+    const startMinutes = startTime.hour * 60 + startTime.minute;
+    const endMinutes = endTime.hour * 60 + endTime.minute;
+    
+    // Calculate duration in minutes
+    const durationMinutes = endMinutes - startMinutes;
+    
+    // Convert to pixels (64px per hour = 64px per 60 minutes)
+    const heightInPixels = (durationMinutes / 60) * 64;
+    
+    // Ensure minimum height of 64px (1 hour slot) as per TimeTable specification
+    return Math.max(heightInPixels, 64);
   };
 
   const getSlotTop = (slot: TimeSlot) => {
@@ -284,26 +380,35 @@ const TimeTable: React.FC<TimeTableProps> = ({ isOpen, onClose }) => {
         let hour24 = hours;
         if (period === 'PM' && hours !== 12) hour24 += 12;
         if (period === 'AM' && hours === 12) hour24 = 0;
-        return { hour: hour24, minute: minutes };
+        return { hour: hour24, minute: minutes || 0 };
       } else {
         // 24-hour format
         const [hours, minutes] = timeStr.split(':').map(Number);
-        return { hour: hours, minute: minutes };
+        return { hour: hours, minute: minutes || 0 };
       }
     };
     
     const startTime = parseTime(slot.startTime);
     const baseHour = 7; // Starting from 7 AM
     
-    const hoursFromBase = (startTime.hour + startTime.minute / 60) - baseHour;
-    return hoursFromBase * 60; // 60px per hour
+    // Calculate total minutes from the base time (7:00 AM)
+    const baseMinutes = baseHour * 60; // 7:00 AM in minutes
+    const slotStartMinutes = startTime.hour * 60 + startTime.minute;
+    
+    // Calculate offset from base in minutes
+    const offsetMinutes = slotStartMinutes - baseMinutes;
+    
+    // Convert to pixels (64px per hour = 64px per 60 minutes)
+    const topInPixels = (offsetMinutes / 60) * 64;
+    
+    return Math.max(topInPixels, 0); // Ensure non-negative positioning
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-7xl max-h-[95vh] overflow-hidden rounded-3xl shadow-2xl">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[110] p-4">
+      <Card className="w-full max-w-7xl max-h-[95vh] overflow-hidden rounded-3xl shadow-2xl relative z-10">
         <CardHeader className="p-6 border-b bg-gradient-to-r from-blue-50 to-purple-50">
           <div className="flex items-center justify-between">
             <div>
@@ -381,48 +486,92 @@ const TimeTable: React.FC<TimeTableProps> = ({ isOpen, onClose }) => {
                     />
                   ))}
                   
-                  {/* Render time slots */}
-                  {timeSlots
-                    .filter(slot => slot.day === dayIndex)
-                    .map(slot => (
-                      <div
-                        key={slot.id}
-                        className={`absolute left-1 right-1 ${slot.color} text-white rounded-xl p-2 shadow-lg cursor-pointer hover:shadow-xl transition-all hover:scale-[1.02] border border-white/20`}
-                        style={{
-                          top: `${getSlotTop(slot)}px`,
-                          height: `${getSlotHeight(slot)}px`,
-                          minHeight: '50px'
-                        }}
-                        onClick={() => editTimeSlot(slot)}
-                      >
-                        <div className="h-full flex flex-col justify-between">
-                          <div>
-                            <div className="font-bold text-sm leading-tight mb-1">{slot.courseName}</div>
-                            <div className="text-xs opacity-90 mb-1">{slot.instructor}</div>
-                            <div className="text-xs opacity-80 flex items-center gap-1">
-                              <MapPin className="w-3 h-3" />
-                              {slot.location}
+                  {/* Render time slots with advanced overlap handling */}
+                  {calculateSlotPositions(dayIndex).map((slot) => (
+                    <div
+                      key={slot.id}
+                      className={`absolute ${slot.color} text-white rounded-2xl p-2 shadow-lg cursor-pointer hover:shadow-xl transition-all hover:scale-[1.01] border border-white/20 overflow-hidden group`}
+                      style={{
+                        top: `${slot.top}px`,
+                        height: `${slot.height}px`,
+                        left: `${slot.leftPercent}%`,
+                        width: `${slot.widthPercent}%`,
+                        minHeight: '64px', // Following TimeTable specification
+                        zIndex: slot.zIndex
+                      }}
+                      onClick={() => editTimeSlot(slot)}
+                      onMouseEnter={(e) => {
+                        // Clear any existing timeout
+                        if (hoverTimeoutRef.current) {
+                          clearTimeout(hoverTimeoutRef.current);
+                        }
+                        
+                        // Show tooltip immediately for testing
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setHoveredSlot({
+                          slot,
+                          position: { x: rect.right + 10, y: rect.top + rect.height / 2 }
+                        });
+                      }}
+                      onMouseLeave={() => {
+                        // Clear timeout and hide tooltip
+                        if (hoverTimeoutRef.current) {
+                          clearTimeout(hoverTimeoutRef.current);
+                          hoverTimeoutRef.current = null;
+                        }
+                        setHoveredSlot(null);
+                      }}
+                    >
+                      <div className="h-full flex flex-col justify-between relative">
+                        <div className="flex-1 min-h-0">
+                          <div 
+                            className={`font-bold leading-tight mb-1 truncate ${
+                              slot.totalOverlapping > 2 ? 'text-xs' : 'text-sm'
+                            }`} 
+                            title={slot.courseName}
+                          >
+                            {slot.courseName}
+                          </div>
+                          {slot.totalOverlapping <= 2 && (
+                            <div className="text-xs opacity-90 mb-1 truncate" title={slot.instructor}>
+                              {slot.instructor}
                             </div>
-                          </div>
-                          <div className="text-xs opacity-90 font-medium">
-                            {slot.startTime} - {slot.endTime}
-                          </div>
-                          <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                deleteTimeSlot(slot.id);
-                              }}
-                              className="h-6 w-6 p-0 text-white hover:bg-white/20"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
+                          )}
+                          <div className="text-xs opacity-80 flex items-center gap-1 truncate" title={slot.location}>
+                            <MapPin className="w-3 h-3 flex-shrink-0" />
+                            <span className="truncate">{slot.location}</span>
                           </div>
                         </div>
+                        <div className={`opacity-90 font-medium mt-1 truncate ${
+                          slot.totalOverlapping > 2 ? 'text-xs' : 'text-xs'
+                        }`}>
+                          {slot.totalOverlapping > 2 
+                            ? `${convertTo12Hour(slot.startTime).split(' ')[0]}` 
+                            : `${convertTo12Hour(slot.startTime)} - ${convertTo12Hour(slot.endTime)}`
+                          }
+                        </div>
+                        {/* Overlap indicator */}
+                        {slot.totalOverlapping > 1 && (
+                          <div className="absolute bottom-1 left-1 bg-white/20 backdrop-blur-sm rounded-full px-1.5 py-0.5 text-xs font-bold">
+                            {slot.totalOverlapping}
+                          </div>
+                        )}
+                        <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteTimeSlot(slot.id);
+                            }}
+                            className="h-5 w-5 p-0 text-white hover:bg-white/20 rounded-full"
+                          >
+                            <Trash2 className="w-2.5 h-2.5" />
+                          </Button>
+                        </div>
                       </div>
-                    ))}
+                    </div>
+                  ))}
                 </div>
               ))}
             </div>
@@ -431,8 +580,8 @@ const TimeTable: React.FC<TimeTableProps> = ({ isOpen, onClose }) => {
 
         {/* Add/Edit Slot Modal */}
         {showAddSlotModal && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-60">
-            <div className="bg-white rounded-3xl p-6 w-full max-w-md mx-4 shadow-2xl">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100]">
+            <div className="bg-white rounded-3xl p-6 w-full max-w-md mx-4 shadow-2xl relative z-[101]">
               <h3 className="text-xl font-bold text-gray-800 mb-4">
                 {editingSlot ? 'Edit Class' : 'Add New Class'}
               </h3>
@@ -461,7 +610,7 @@ const TimeTable: React.FC<TimeTableProps> = ({ isOpen, onClose }) => {
                     </button>
                     {showCourseDropdown && (
                       <div 
-                        className="absolute top-full left-0 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto scrollbar-hide"
+                        className="absolute top-full left-0 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg z-[110] max-h-48 overflow-y-auto scrollbar-hide"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <button
@@ -566,7 +715,7 @@ const TimeTable: React.FC<TimeTableProps> = ({ isOpen, onClose }) => {
                       </button>
                       {showDayDropdown && (
                         <div 
-                          className="absolute top-full left-0 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto scrollbar-hide"
+                          className="absolute top-full left-0 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg z-[110] max-h-48 overflow-y-auto scrollbar-hide"
                           onClick={(e) => e.stopPropagation()}
                         >
                           {days.map((day, index) => (
@@ -608,7 +757,7 @@ const TimeTable: React.FC<TimeTableProps> = ({ isOpen, onClose }) => {
                       </button>
                       {showStartTimeDropdown && (
                         <div 
-                          className="absolute top-full left-0 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto scrollbar-hide"
+                          className="absolute top-full left-0 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg z-[110] max-h-48 overflow-y-auto scrollbar-hide"
                           onClick={(e) => e.stopPropagation()}
                         >
                           {timeOptions.map((time) => (
@@ -650,7 +799,7 @@ const TimeTable: React.FC<TimeTableProps> = ({ isOpen, onClose }) => {
                       </button>
                       {showEndTimeDropdown && (
                         <div 
-                          className="absolute top-full left-0 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto scrollbar-hide"
+                          className="absolute top-full left-0 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg z-[110] max-h-48 overflow-y-auto scrollbar-hide"
                           onClick={(e) => e.stopPropagation()}
                         >
                           {timeOptions.map((time) => (
@@ -694,7 +843,7 @@ const TimeTable: React.FC<TimeTableProps> = ({ isOpen, onClose }) => {
                     </button>
                     {showTypeDropdown && (
                       <div 
-                        className="absolute top-full left-0 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto scrollbar-hide"
+                        className="absolute top-full left-0 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg z-[110] max-h-48 overflow-y-auto scrollbar-hide"
                         onClick={(e) => e.stopPropagation()}
                       >
                         {typeOptions.map((option) => (
@@ -750,6 +899,29 @@ const TimeTable: React.FC<TimeTableProps> = ({ isOpen, onClose }) => {
           </div>
         )}
       </Card>
+      
+      {/* Enhanced Hover Tooltip for All Class Boxes */}
+      {hoveredSlot && (
+        <div 
+          className="fixed bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-gray-200 p-4 text-sm max-w-xs pointer-events-none"
+          style={{
+            left: hoveredSlot.position.x,
+            top: hoveredSlot.position.y,
+            zIndex: 99999,
+            transform: 'translateY(-50%)'
+          }}
+        >
+          <div className="space-y-2">
+            <div className="font-bold text-gray-800">{hoveredSlot.slot.courseName}</div>
+            <div className="text-gray-600">
+              <div>👨‍🏫 {hoveredSlot.slot.instructor || 'No instructor'}</div>
+              <div>📍 {hoveredSlot.slot.location || 'No location'}</div>
+              <div>⏰ {convertTo12Hour(hoveredSlot.slot.startTime)} - {convertTo12Hour(hoveredSlot.slot.endTime)}</div>
+              <div>📚 {hoveredSlot.slot.type}</div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
