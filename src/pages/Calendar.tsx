@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle } from "react";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { eventManager } from "@/utils/eventManager";
 import { useCalendarEvents } from "@/contexts/CalendarEventsContext";
 import { format } from "date-fns";
+import TimeTable from "./TimeTable";
 
 interface CalendarEvent {
   id: number;
@@ -34,6 +35,7 @@ const Calendar = forwardRef<CalendarRef, CalendarProps>(({ onEventsChange }, ref
   const [showAddEventModal, setShowAddEventModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showDateModal, setShowDateModal] = useState(false);
+  const [showTimeTable, setShowTimeTable] = useState(false);
   const [newEvent, setNewEvent] = useState({
     title: "",
     date: "",
@@ -1261,6 +1263,14 @@ const Calendar = forwardRef<CalendarRef, CalendarProps>(({ onEventsChange }, ref
             </div>
             
             <Button 
+              onClick={() => setShowTimeTable(true)}
+              className="bg-purple-500 hover:bg-purple-600 text-white rounded-2xl px-6"
+            >
+              <CalendarIcon className="w-4 h-4 mr-2" />
+              TimeTable
+            </Button>
+            
+            <Button 
               onClick={handleAddEvent}
               className="bg-black hover:bg-gray-800 text-white rounded-2xl px-6"
             >
@@ -1850,6 +1860,11 @@ const Calendar = forwardRef<CalendarRef, CalendarProps>(({ onEventsChange }, ref
             </div>
           </div>
         </div>
+      )}
+      
+      {/* TimeTable Component */}
+      {showTimeTable && (
+        <TimeTable isOpen={showTimeTable} onClose={() => setShowTimeTable(false)} />
       )}
     </Card>
   );
