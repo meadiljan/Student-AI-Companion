@@ -111,11 +111,11 @@ const TimeTable: React.FC<TimeTableProps> = ({ isOpen, onClose }) => {
     if (courses.length > 0 && timeSlots.length === 0) {
       const sampleSchedule = [
         { day: 0, startTime: "09:30", endTime: "11:00", type: 'lecture' as const }, // 1.5 hours - Monday
-        { day: 0, startTime: "10:00", endTime: "11:30", type: 'tutorial' as const }, // Overlapping - Monday
+        { day: 0, startTime: "10:00", endTime: "10:30", type: 'tutorial' as const }, // 30 min - Monday
         { day: 1, startTime: "14:15", endTime: "16:45", type: 'lab' as const },     // 2.5 hours - Tuesday
-        { day: 2, startTime: "08:30", endTime: "10:00", type: 'lecture' as const }, // 1.5 hours - Wednesday
-        { day: 2, startTime: "09:00", endTime: "10:30", type: 'tutorial' as const }, // Overlapping - Wednesday
-        { day: 2, startTime: "09:30", endTime: "11:00", type: 'lab' as const },      // Triple overlap - Wednesday
+        { day: 2, startTime: "08:30", endTime: "09:00", type: 'lecture' as const }, // 30 min - Wednesday
+        { day: 2, startTime: "09:00", endTime: "10:00", type: 'tutorial' as const }, // 1 hour - Wednesday
+        { day: 2, startTime: "09:30", endTime: "09:45", type: 'lab' as const },      // 15 min - Wednesday
         { day: 4, startTime: "13:30", endTime: "15:00", type: 'lecture' as const }, // 1.5 hours - Friday
       ];
 
@@ -328,7 +328,9 @@ const TimeTable: React.FC<TimeTableProps> = ({ isOpen, onClose }) => {
         widthPercent: Math.max(widthPercent - 2, 20), // Leave 2% margin, minimum 20%
         leftPercent: leftPercent + 1, // 1% left margin
         zIndex: Math.min(10 + columnIndex, 20), // Ensure proper layering, max z-20
-        totalOverlapping
+        totalOverlapping,
+        height: getSlotHeight(slot), // Add height for content filtering
+        durationMinutes: slot.endMinutes - slot.startMinutes // Add duration in minutes
       };
     });
     
@@ -363,11 +365,11 @@ const TimeTable: React.FC<TimeTableProps> = ({ isOpen, onClose }) => {
     // Calculate duration in minutes
     const durationMinutes = endMinutes - startMinutes;
     
-    // Convert to pixels (64px per hour = 64px per 60 minutes)
-    const heightInPixels = (durationMinutes / 60) * 64;
+    // Convert to pixels (80px per hour = 80px per 60 minutes)
+    const heightInPixels = (durationMinutes / 60) * 80;
     
-    // Ensure minimum height of 64px (1 hour slot) as per TimeTable specification
-    return Math.max(heightInPixels, 64);
+    // Ensure minimum height of 30px for usability as per TimeTable specification
+    return Math.max(heightInPixels, 30);
   };
 
   const getSlotTop = (slot: TimeSlot) => {
@@ -398,8 +400,8 @@ const TimeTable: React.FC<TimeTableProps> = ({ isOpen, onClose }) => {
     // Calculate offset from base in minutes
     const offsetMinutes = slotStartMinutes - baseMinutes;
     
-    // Convert to pixels (64px per hour = 64px per 60 minutes)
-    const topInPixels = (offsetMinutes / 60) * 64;
+    // Convert to pixels (80px per hour = 80px per 60 minutes)
+    const topInPixels = (offsetMinutes / 60) * 80;
     
     return Math.max(topInPixels, 0); // Ensure non-negative positioning
   };
@@ -460,7 +462,7 @@ const TimeTable: React.FC<TimeTableProps> = ({ isOpen, onClose }) => {
                 {timeSlotHours.map(hour => (
                   <div
                     key={hour}
-                    className="h-16 border-b flex items-center justify-center text-sm text-gray-600 font-medium"
+                    className="h-20 border-b flex items-center justify-center text-sm text-gray-600 font-medium"
                   >
                     {hour > 12 ? `${hour - 12}:00 PM` : hour === 12 ? '12:00 PM' : `${hour}:00 AM`}
                   </div>
@@ -473,7 +475,7 @@ const TimeTable: React.FC<TimeTableProps> = ({ isOpen, onClose }) => {
                   {timeSlotHours.map(hour => (
                     <div
                       key={`${dayIndex}-${hour}`}
-                      className="h-16 border-b hover:bg-blue-50 transition-colors cursor-pointer"
+                      className="h-20 border-b hover:bg-blue-50 transition-colors cursor-pointer"
                       onClick={() => {
                         setNewSlot(prev => ({
                           ...prev,
@@ -496,7 +498,6 @@ const TimeTable: React.FC<TimeTableProps> = ({ isOpen, onClose }) => {
                         height: `${slot.height}px`,
                         left: `${slot.leftPercent}%`,
                         width: `${slot.widthPercent}%`,
-                        minHeight: '64px', // Following TimeTable specification
                         zIndex: slot.zIndex
                       }}
                       onClick={() => editTimeSlot(slot)}
@@ -524,36 +525,39 @@ const TimeTable: React.FC<TimeTableProps> = ({ isOpen, onClose }) => {
                     >
                       <div className="h-full flex flex-col justify-between relative">
                         <div className="flex-1 min-h-0">
+                          {/* Always show course name */}
                           <div 
-                            className={`font-bold leading-tight mb-1 truncate ${
-                              slot.totalOverlapping > 2 ? 'text-xs' : 'text-sm'
+                            className={`font-bold leading-tight truncate ${
+                              slot.durationMinutes <= 30 ? 'text-xs' : slot.durationMinutes <= 60 ? 'text-sm mb-0' : 'text-sm mb-1'
                             }`} 
                             title={slot.courseName}
                           >
                             {slot.courseName}
                           </div>
-                          {slot.totalOverlapping <= 2 && (
+                          
+                          {/* Show instructor only for classes longer than 30 minutes */}
+                          {slot.durationMinutes > 30 && (
                             <div className="text-xs opacity-90 mb-1 truncate" title={slot.instructor}>
                               {slot.instructor}
                             </div>
                           )}
-                          <div className="text-xs opacity-80 flex items-center gap-1 truncate" title={slot.location}>
-                            <MapPin className="w-3 h-3 flex-shrink-0" />
-                            <span className="truncate">{slot.location}</span>
-                          </div>
+                          
+                          {/* Show location only for classes longer than 1 hour */}
+                          {slot.durationMinutes > 60 && (
+                            <div className="text-xs opacity-80 flex items-center gap-1 truncate" title={slot.location}>
+                              <MapPin className="w-3 h-3 flex-shrink-0" />
+                              <span className="truncate">{slot.location}</span>
+                            </div>
+                          )}
                         </div>
-                        <div className={`opacity-90 font-medium mt-1 truncate ${
-                          slot.totalOverlapping > 2 ? 'text-xs' : 'text-xs'
-                        }`}>
-                          {slot.totalOverlapping > 2 
-                            ? `${convertTo12Hour(slot.startTime).split(' ')[0]}` 
-                            : `${convertTo12Hour(slot.startTime)} - ${convertTo12Hour(slot.endTime)}`
-                          }
-                        </div>
-                        {/* Overlap indicator */}
-                        {slot.totalOverlapping > 1 && (
-                          <div className="absolute bottom-1 left-1 bg-white/20 backdrop-blur-sm rounded-full px-1.5 py-0.5 text-xs font-bold">
-                            {slot.totalOverlapping}
+                        
+                        {/* Show time based on duration - only for classes longer than 30 minutes */}
+                        {slot.durationMinutes > 30 && (
+                          <div className="text-xs opacity-90 font-medium truncate">
+                            {slot.durationMinutes <= 60 
+                              ? convertTo12Hour(slot.startTime).replace(' AM', '').replace(' PM', '') // Just time for short classes
+                              : `${convertTo12Hour(slot.startTime)} - ${convertTo12Hour(slot.endTime)}` // Full range for longer classes
+                            }
                           </div>
                         )}
                         <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
