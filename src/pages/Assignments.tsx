@@ -23,11 +23,14 @@ import {
   Trash2,
   X,
   ChevronDown,
-  CalendarIcon as CalendarLucide
+  CalendarIcon as CalendarLucide,
+  Edit3
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAssignments, Assignment } from "@/contexts/AssignmentsContext";
 import { useCourses } from "@/contexts/CoursesContext";
+import AssignmentDetailModal from "@/components/AssignmentDetailModal";
+import AssignmentEditModal from "@/components/AssignmentEditModal";
 
 const Assignments = () => {
   const { 
@@ -50,6 +53,12 @@ const Assignments = () => {
     priority: "medium" as "low" | "medium" | "high",
     course: "",
   });
+
+  // States for detail and edit modals
+  const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
+  const [isAssignmentDetailOpen, setIsAssignmentDetailOpen] = useState(false);
+  const [isAssignmentEditOpen, setIsAssignmentEditOpen] = useState(false);
+  const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
 
   // Calendar and time picker states (matching calendar component)
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -281,6 +290,77 @@ const Assignments = () => {
     });
   };
 
+  // Handle opening assignment detail
+  const handleOpenAssignmentDetail = (assignment: Assignment) => {
+    setSelectedAssignment(assignment);
+    setIsAssignmentDetailOpen(true);
+  };
+
+  // Handle closing assignment detail
+  const handleCloseAssignmentDetail = () => {
+    setIsAssignmentDetailOpen(false);
+    setSelectedAssignment(null);
+  };
+
+  // Handle edit from detail modal
+  const handleEditFromDetail = (assignment: Assignment) => {
+    setEditingAssignment(assignment);
+    setIsAssignmentEditOpen(true);
+    handleCloseAssignmentDetail();
+  };
+
+  // Handle delete from detail modal
+  const handleDeleteFromDetail = (id: string) => {
+    deleteAssignmentById(id);
+    handleCloseAssignmentDetail();
+  };
+
+  // Handle star toggle from detail modal
+  const handleToggleStarFromDetail = (id: string) => {
+    toggleStar(id);
+    // Update the selected assignment if it's the one being starred
+    if (selectedAssignment && selectedAssignment.id === id) {
+      setSelectedAssignment({ ...selectedAssignment, starred: !selectedAssignment.starred });
+    }
+  };
+
+  // Handle complete toggle from detail modal
+  const handleToggleCompleteFromDetail = (id: string) => {
+    toggleComplete(id);
+    // Update the selected assignment if it's the one being completed
+    if (selectedAssignment && selectedAssignment.id === id) {
+      setSelectedAssignment({ 
+        ...selectedAssignment, 
+        completed: !selectedAssignment.completed,
+        status: !selectedAssignment.completed ? "completed" : "pending"
+      });
+    }
+  };
+
+  // Handle updating assignment
+  const handleUpdateAssignment = (assignmentData: {
+    title: string;
+    description: string;
+    dueDate: string;
+    dueTime: string;
+    priority: "low" | "medium" | "high";
+    course: string;
+  }) => {
+    if (!editingAssignment) return;
+    
+    updateAssignment(editingAssignment.id, {
+      title: assignmentData.title,
+      description: assignmentData.description,
+      dueDate: assignmentData.dueDate,
+      dueTime: assignmentData.dueTime,
+      priority: assignmentData.priority,
+      course: assignmentData.course
+    });
+    
+    setEditingAssignment(null);
+    setIsAssignmentEditOpen(false);
+  };
+
   return (
     <div className="flex h-full flex-col p-6">
       {/* Header */}
@@ -293,7 +373,10 @@ const Assignments = () => {
             </p>
           </div>
           <Button 
-            onClick={() => setShowNewAssignment(!showNewAssignment)}
+            onClick={() => {
+              setEditingAssignment(null);
+              setShowNewAssignment(!showNewAssignment);
+            }}
             className="bg-black hover:bg-gray-800 text-white rounded-2xl h-12 px-6 font-medium"
           >
             <Plus className="w-5 h-5 mr-2" />
@@ -342,12 +425,19 @@ const Assignments = () => {
               const statusBadge = getStatusBadge(assignment.status, assignment.completed);
               
               return (
-                <Card key={assignment.id} className="rounded-3xl shadow-sm border-0 bg-white hover:shadow-md transition-all duration-200">
+                <Card 
+                  key={assignment.id} 
+                  className="rounded-3xl shadow-sm border-0 bg-white hover:shadow-md transition-all duration-200 cursor-pointer"
+                  onClick={() => handleOpenAssignmentDetail(assignment)}
+                >
                   <CardContent className="p-6">
                     <div className="flex items-start gap-4">
                       {/* Checkbox */}
                       <button
-                        onClick={() => toggleComplete(assignment.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleComplete(assignment.id);
+                        }}
                         className="mt-1 flex-shrink-0"
                       >
                         {assignment.completed ? (
@@ -411,7 +501,10 @@ const Assignments = () => {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => toggleStar(assignment.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleStar(assignment.id);
+                              }}
                               className="p-2 rounded-xl"
                             >
                               <Star className={cn(
@@ -423,7 +516,22 @@ const Assignments = () => {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => deleteAssignmentById(assignment.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenAssignmentDetail(assignment);
+                              }}
+                              className="p-2 rounded-xl"
+                            >
+                              <Edit3 className="w-4 h-4 text-gray-400" />
+                            </Button>
+                            
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteAssignmentById(assignment.id);
+                              }}
                               className="p-2 rounded-xl text-red-500 hover:text-red-700 hover:bg-red-50"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -740,6 +848,37 @@ const Assignments = () => {
           </div>
         </div>
       )}
+
+      {/* Assignment Detail Modal */}
+      {isAssignmentDetailOpen && selectedAssignment && (
+        <AssignmentDetailModal
+          assignment={selectedAssignment}
+          isOpen={isAssignmentDetailOpen}
+          onClose={handleCloseAssignmentDetail}
+          onEdit={handleEditFromDetail}
+          onDelete={handleDeleteFromDetail}
+          onToggleStar={handleToggleStarFromDetail}
+          onToggleComplete={handleToggleCompleteFromDetail}
+        />
+      )}
+
+      {/* Assignment Edit Modal */}
+      <AssignmentEditModal
+        isOpen={isAssignmentEditOpen}
+        onClose={() => {
+          setIsAssignmentEditOpen(false);
+          setEditingAssignment(null);
+        }}
+        onSave={handleUpdateAssignment}
+        initialData={editingAssignment ? {
+          title: editingAssignment.title,
+          description: editingAssignment.description || "",
+          dueDate: editingAssignment.dueDate,
+          dueTime: editingAssignment.dueTime || "",
+          priority: editingAssignment.priority,
+          course: editingAssignment.course
+        } : undefined}
+      />
     </div>
   );
 };
