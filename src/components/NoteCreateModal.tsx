@@ -41,6 +41,15 @@ const NoteCreateModal = ({
   const [showCourseDropdown, setShowCourseDropdown] = useState(false);
   const courseDropdownRef = useRef<HTMLDivElement>(null);
 
+  // Update state when initialData changes
+  useEffect(() => {
+    setTitle(initialData?.title || '');
+    setContent(initialData?.content || '');
+    setCourseId(initialData?.courseId || '');
+    setTags(initialData?.tags || '');
+    setIsPinned(initialData?.isPinned || false);
+  }, [initialData]);
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -58,6 +67,27 @@ const NoteCreateModal = ({
     };
   }, [showCourseDropdown]);
 
+  const handleClose = () => {
+    // Only reset form if we're not editing (i.e., creating new note)
+    // This prevents the form from resetting to previous edit data when creating new notes
+    if (!initialData) {
+      setTitle('');
+      setContent('');
+      setCourseId('');
+      setTags('');
+      setIsPinned(false);
+    } else {
+      // When editing, reset to the original note data
+      setTitle(initialData?.title || '');
+      setContent(initialData?.content || '');
+      setCourseId(initialData?.courseId || '');
+      setTags(initialData?.tags || '');
+      setIsPinned(initialData?.isPinned || false);
+    }
+    setShowCourseDropdown(false);
+    onClose();
+  };
+
   const handleSave = () => {
     if (!title.trim()) return;
     
@@ -69,23 +99,12 @@ const NoteCreateModal = ({
       isPinned
     });
     
-    // Reset form
+    // Reset form only after successful save
     setTitle('');
     setContent('');
     setCourseId('');
     setTags('');
     setIsPinned(false);
-  };
-
-  const handleClose = () => {
-    // Reset form
-    setTitle(initialData?.title || '');
-    setContent(initialData?.content || '');
-    setCourseId(initialData?.courseId || '');
-    setTags(initialData?.tags || '');
-    setIsPinned(initialData?.isPinned || false);
-    setShowCourseDropdown(false);
-    onClose();
   };
 
   if (!isOpen) return null;
