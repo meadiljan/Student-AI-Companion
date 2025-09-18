@@ -15,6 +15,7 @@ import Courses from "./pages/Courses";
 import CourseDetails from "./pages/CourseDetails";
 import LecturePage from "./pages/LecturePage";
 import NotFound from "./pages/NotFound";
+import Notes from "./pages/Notes";
 import AIAssistantSearchBar from "./components/AIAssistantSearchBar";
 
 const queryClient = new QueryClient();
@@ -38,7 +39,7 @@ const App = () => (
                   <Route path="/courses/:courseId/lecture/:lectureId" element={<LecturePage />} />
                   <Route path="/timetable" element={<Calendar />} />
                   <Route path="/quizzes" element={<div>Quizzes Page</div>} />
-                  <Route path="/notes" element={<div>Notes Page</div>} />
+                  <Route path="/notes" element={<Notes />} />
                   <Route path="/performance" element={<div>Performance Page</div>} />
                   <Route path="/study-focus" element={<div>Study Focus Page</div>} />
                   <Route path="/settings" element={<div>Settings Page</div>} />
