@@ -13,6 +13,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { useCourses } from '@/contexts/CoursesContext';
+import FormattedContent from '@/components/FormattedContent';
 
 interface Note {
   id: string;
@@ -113,9 +114,10 @@ const NoteDetailModal = ({
         {/* Content */}
         <div className="flex-1 overflow-y-auto mb-6 pr-2 scrollbar-hide">
           <div className="bg-muted/50 rounded-2xl p-4 min-h-[200px]">
-            <pre className="whitespace-pre-wrap font-sans text-foreground">
-              {note.content}
-            </pre>
+            <FormattedContent 
+              content={note.content} 
+              className="font-sans text-foreground" 
+            />
           </div>
         </div>
 

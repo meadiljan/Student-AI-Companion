@@ -25,6 +25,7 @@ import { useCourses } from '@/contexts/CoursesContext';
 import RichTextEditor from '@/components/RichTextEditor';
 import NoteDetailModal from '@/components/NoteDetailModal';
 import NoteCreateModal from '@/components/NoteCreateModal';
+import FormattedContent from '@/components/FormattedContent';
 
 interface Note {
   id: string;
@@ -392,7 +393,8 @@ const Notes = () => {
                   return (
                     <Card 
                       key={note.id} 
-                      className="rounded-3xl backdrop-blur-sm bg-card/90 border-border shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]"
+                      className="rounded-3xl backdrop-blur-sm bg-card/90 border-border shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] cursor-pointer"
+                      onClick={() => handleOpenNoteDetail(note)}
                     >
                       <CardHeader className="pb-2">
                         <div className="flex justify-between items-start">
@@ -404,7 +406,10 @@ const Notes = () => {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleTogglePin(note.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleTogglePin(note.id);
+                              }}
                               className="h-8 w-8 rounded-full"
                               title={note.isPinned ? "Unpin note" : "Pin note"}
                             >
@@ -413,7 +418,10 @@ const Notes = () => {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleToggleArchive(note.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleToggleArchive(note.id);
+                              }}
                               className="h-8 w-8 rounded-full"
                               title={note.isArchived ? "Unarchive note" : "Archive note"}
                             >
@@ -422,7 +430,10 @@ const Notes = () => {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleOpenNoteDetail(note)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenNoteDetail(note);
+                              }}
                               className="h-8 w-8 rounded-full"
                               title="View note details"
                             >
@@ -438,9 +449,9 @@ const Notes = () => {
                         )}
                       </CardHeader>
                       <CardContent>
-                        <p className="text-sm text-muted-foreground mb-3 line-clamp-3">
-                          {note.content}
-                        </p>
+                        <div className="text-sm text-muted-foreground mb-3 line-clamp-3">
+                          <FormattedContent content={note.content} />
+                        </div>
                         
                         <div className="flex flex-wrap gap-1 mb-3">
                           {note.tags.map(tag => (
@@ -465,7 +476,10 @@ const Notes = () => {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleDeleteNote(note.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteNote(note.id);
+                              }}
                               className="h-6 px-2 text-xs text-muted-foreground hover:text-destructive"
                             >
                               Delete
@@ -484,7 +498,8 @@ const Notes = () => {
                   return (
                     <Card 
                       key={note.id} 
-                      className="rounded-3xl backdrop-blur-sm bg-card/90 border-border shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.01]"
+                      className="rounded-3xl backdrop-blur-sm bg-card/90 border-border shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.01] cursor-pointer"
+                      onClick={() => handleOpenNoteDetail(note)}
                     >
                       <CardContent className="p-4">
                         <div className="flex justify-between items-start mb-2">
@@ -504,7 +519,10 @@ const Notes = () => {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleTogglePin(note.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleTogglePin(note.id);
+                              }}
                               className="h-8 w-8 rounded-full"
                               title={note.isPinned ? "Unpin note" : "Pin note"}
                             >
@@ -513,7 +531,10 @@ const Notes = () => {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleToggleArchive(note.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleToggleArchive(note.id);
+                              }}
                               className="h-8 w-8 rounded-full"
                               title={note.isArchived ? "Unarchive note" : "Archive note"}
                             >
@@ -522,7 +543,10 @@ const Notes = () => {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleOpenNoteDetail(note)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenNoteDetail(note);
+                              }}
                               className="h-8 w-8 rounded-full"
                               title="View note details"
                             >
@@ -531,9 +555,9 @@ const Notes = () => {
                           </div>
                         </div>
                         
-                        <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
-                          {note.content}
-                        </p>
+                        <div className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                          <FormattedContent content={note.content} />
+                        </div>
                         
                         <div className="flex flex-wrap gap-1 mb-3">
                           {note.tags.map(tag => (
@@ -557,7 +581,10 @@ const Notes = () => {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleDeleteNote(note.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteNote(note.id);
+                            }}
                             className="h-6 px-2 text-xs text-muted-foreground hover:text-destructive"
                           >
                             Delete
