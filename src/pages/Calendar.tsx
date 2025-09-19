@@ -852,16 +852,6 @@ const Calendar = forwardRef<CalendarRef, CalendarProps>(({ onEventsChange }, ref
                 day: 'numeric' 
               })}
             </h3>
-            {!isToday && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={goToToday}
-                className="mt-2 text-sm bg-black text-white hover:bg-white hover:text-black"
-              >
-                Go to Today
-              </Button>
-            )}
           </div>
           
           <Button
@@ -874,11 +864,11 @@ const Calendar = forwardRef<CalendarRef, CalendarProps>(({ onEventsChange }, ref
           </Button>
         </div>
         
-        {/* Timeline View */}
-        <div className="relative bg-gray-50 rounded-2xl p-6 overflow-hidden">
-          <h4 className="text-lg font-semibold text-gray-700 mb-6">Schedule</h4>
+        {/* Timeline View with improved event positioning */}
+        <div className="relative bg-gray-50 rounded-2xl p-4 overflow-hidden">
+          <h4 className="font-semibold text-gray-700 mb-4">Schedule</h4>
           <div 
-            className="relative grid grid-cols-[auto_1fr] gap-x-6 overflow-hidden" 
+            className="relative grid grid-cols-[auto_1fr] gap-x-4" 
             style={{ minHeight: `${totalTimelineHours * hourHeightPx}px` }}
           >
             {/* Time labels and grid lines */}
@@ -891,7 +881,7 @@ const Calendar = forwardRef<CalendarRef, CalendarProps>(({ onEventsChange }, ref
               return (
                 <React.Fragment key={hour}>
                   <div
-                    className="text-right text-sm text-gray-500 pt-2 w-16 font-medium"
+                    className="text-right text-xs text-gray-500 pt-2 w-12"
                     style={{ height: `${hourHeightPx}px` }}
                   >
                     {timeLabel}
@@ -912,40 +902,32 @@ const Calendar = forwardRef<CalendarRef, CalendarProps>(({ onEventsChange }, ref
                 return (
                   <div
                     key={event.id}
-                    className={`absolute rounded-xl p-3 text-white shadow-lg flex flex-col justify-center ${event.color} border border-white/20 cursor-pointer hover:shadow-xl transition-all hover:scale-[1.02]`}
+                    className={`absolute rounded-lg p-2 text-white shadow-md flex flex-col justify-center ${event.color} border border-white/20`}
                     style={{ 
                       top: `${event.top}px`, 
-                      height: `${Math.max(event.height, 50)}px`, // Minimum height to show content
+                      height: `${Math.max(event.height, 40)}px`,
                       left: `${event.leftOffsetPercentage}%`,
-                      width: `${event.widthPercentage - 2}%`, // Leave small margin
+                      width: `${event.widthPercentage - 2}%`,
                       zIndex: 10
                     }}
-                    onMouseEnter={(e) => {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      handleEventMouseEnter(event, {
-                        x: rect.left + rect.width / 2,
-                        y: rect.top - 10
-                      });
-                    }}
-                    onMouseLeave={handleEventMouseLeave}
                   >
-                  <p className="font-bold text-sm leading-tight truncate" title={event.title}>
-                    {event.title}
-                  </p>
-                  <p className="text-xs font-medium opacity-95 leading-tight mt-1">
-                    {event.start.toLocaleTimeString('en-US', { 
-                      hour: 'numeric', 
-                      minute: '2-digit', 
-                      hour12: true 
-                    })} - {event.end.toLocaleTimeString('en-US', { 
-                      hour: 'numeric', 
-                      minute: '2-digit', 
-                      hour12: true 
-                    })}
-                  </p>
-                </div>
-              );
-            })}
+                    <p className="font-medium text-xs leading-tight truncate" title={event.title}>
+                      {event.title}
+                    </p>
+                    <p className="text-xs opacity-90 leading-tight">
+                      {event.start.toLocaleTimeString('en-US', { 
+                        hour: 'numeric', 
+                        minute: '2-digit', 
+                        hour12: true 
+                      })} - {event.end.toLocaleTimeString('en-US', { 
+                        hour: 'numeric', 
+                        minute: '2-digit', 
+                        hour12: true 
+                      })}
+                    </p>
+                  </div>
+                );
+              })}
             </div>
 
             {/* Current time indicator */}
@@ -954,9 +936,9 @@ const Calendar = forwardRef<CalendarRef, CalendarProps>(({ onEventsChange }, ref
                 className="absolute col-start-2 col-end-3 w-full z-20 flex items-center"
                 style={{ top: `${currentTimeTop}px` }}
               >
-                <div className="w-3 h-3 bg-red-500 rounded-full border-2 border-white shadow-lg" />
+                <div className="w-2 h-2 bg-red-500 rounded-full border border-white shadow-md" />
                 <div className="flex-1 h-0.5 bg-red-500" />
-                <div className="bg-red-500 text-white text-sm px-3 py-1 rounded-lg ml-2 font-medium shadow-lg">
+                <div className="bg-red-500 text-white text-xs px-2 py-1 rounded-md ml-2 font-medium">
                   {currentTime.toLocaleTimeString('en-US', { 
                     hour: 'numeric', 
                     minute: '2-digit',
@@ -968,15 +950,40 @@ const Calendar = forwardRef<CalendarRef, CalendarProps>(({ onEventsChange }, ref
           </div>
           
           {todayEvents.length === 0 && (
-            <p className="text-gray-500 text-center py-12 text-lg">
-              No events scheduled for {selectedDay.toLocaleDateString('en-US', { 
-                weekday: 'long', 
-                month: 'short', 
-                day: 'numeric' 
-              })}
-            </p>
+            <p className="text-gray-500 text-center py-8">No events scheduled for today</p>
           )}
         </div>
+        
+        {/* Event List for popup */}
+        {todayEvents.length > 0 && (
+          <div className="bg-gray-50 rounded-2xl p-4">
+            <h4 className="font-semibold text-gray-700 mb-3 text-sm">All Events</h4>
+            <div className="space-y-2">
+              {timelineEvents.map((event) => (
+                <div 
+                  key={event.id} 
+                  className="flex items-center gap-3 p-3 bg-white rounded-lg shadow-sm border border-gray-100"
+                >
+                  <div className={`w-3 h-3 rounded-full ${event.color} flex-shrink-0`}></div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm text-gray-800 truncate">{event.title}</p>
+                    <p className="text-xs text-gray-600">
+                      {event.start.toLocaleTimeString('en-US', { 
+                        hour: 'numeric', 
+                        minute: '2-digit', 
+                        hour12: true 
+                      })} - {event.end.toLocaleTimeString('en-US', { 
+                        hour: 'numeric', 
+                        minute: '2-digit', 
+                        hour12: true 
+                      })}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -1211,8 +1218,8 @@ const Calendar = forwardRef<CalendarRef, CalendarProps>(({ onEventsChange }, ref
   };
 
   return (
-    <Card className="w-full max-w-6xl mx-auto rounded-3xl shadow-xl">
-      <CardHeader className="p-8">
+    <div className="w-full rounded-3xl shadow-xl">
+      <div className="p-8">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
             <Button 
@@ -1222,9 +1229,9 @@ const Calendar = forwardRef<CalendarRef, CalendarProps>(({ onEventsChange }, ref
             >
               <ChevronLeft className="w-4 h-4" />
             </Button>
-            <CardTitle className="text-3xl font-bold text-gray-800">
+            <h2 className="text-3xl font-bold text-gray-800">
               {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
-            </CardTitle>
+            </h2>
             <Button 
               variant="outline" 
               onClick={() => navigateMonth("next")}
@@ -1279,11 +1286,11 @@ const Calendar = forwardRef<CalendarRef, CalendarProps>(({ onEventsChange }, ref
             </Button>
           </div>
         </div>
-      </CardHeader>
+      </div>
       
-      <CardContent className="p-8 pt-0">
+      <div className="p-8 pt-0">
         {renderView()}
-      </CardContent>
+      </div>
 
       {/* Add Event Modal */}
       {showAddEventModal && (
@@ -1405,7 +1412,6 @@ const Calendar = forwardRef<CalendarRef, CalendarProps>(({ onEventsChange }, ref
                       </button>
                       {showStartTimeDropdown && (
                         <div 
-                          ref={startTimeDropdownRef}
                           className="absolute top-full left-0 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto scrollbar-hide"
                           onClick={(e) => e.stopPropagation()}
                         >
@@ -1415,7 +1421,7 @@ const Calendar = forwardRef<CalendarRef, CalendarProps>(({ onEventsChange }, ref
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setNewEvent({...newEvent, startTime: time, time: time});
+                                setNewEvent(prev => ({ ...prev, startTime: time }));
                                 setShowStartTimeDropdown(false);
                               }}
                               className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors first:rounded-t-xl last:rounded-b-xl block"
@@ -1444,7 +1450,6 @@ const Calendar = forwardRef<CalendarRef, CalendarProps>(({ onEventsChange }, ref
                       </button>
                       {showEndTimeDropdown && (
                         <div 
-                          ref={endTimeDropdownRef}
                           className="absolute top-full left-0 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto scrollbar-hide"
                           onClick={(e) => e.stopPropagation()}
                         >
@@ -1454,7 +1459,7 @@ const Calendar = forwardRef<CalendarRef, CalendarProps>(({ onEventsChange }, ref
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setNewEvent({...newEvent, endTime: time});
+                                setNewEvent(prev => ({ ...prev, endTime: time }));
                                 setShowEndTimeDropdown(false);
                               }}
                               className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors first:rounded-t-xl last:rounded-b-xl block"
@@ -1473,31 +1478,34 @@ const Calendar = forwardRef<CalendarRef, CalendarProps>(({ onEventsChange }, ref
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Color
                 </label>
-                <div className="flex gap-3">
-                  {["bg-blue-500", "bg-green-500", "bg-yellow-500", "bg-purple-500", "bg-pink-500", "bg-red-500"].map(color => (
+                <div className="flex gap-2">
+                  {["bg-blue-500", "bg-green-500", "bg-purple-500", "bg-red-500", "bg-yellow-500"].map((color) => (
                     <button
                       key={color}
+                      type="button"
                       onClick={() => setNewEvent({...newEvent, color})}
-                      className={`w-8 h-8 rounded-full ${color} ${
-                        newEvent.color === color ? 'ring-2 ring-offset-2 ring-gray-400' : ''
-                      }`}
+                      className={`w-8 h-8 rounded-full ${color} ${newEvent.color === color ? 'ring-2 ring-offset-2 ring-gray-400' : ''}`}
                     />
                   ))}
                 </div>
               </div>
             </div>
             
-            <div className="flex gap-3 mt-6">
+            <div className="flex justify-end gap-3 mt-8">
               <Button
                 variant="outline"
-                onClick={() => setShowAddEventModal(false)}
-                className="flex-1 rounded-2xl"
+                onClick={() => {
+                  setShowAddEventModal(false);
+                  setNewEvent({ title: "", date: "", time: "", startTime: "09:00 AM", endTime: "10:00 AM", color: "bg-blue-500" });
+                }}
+                className="rounded-2xl"
               >
                 Cancel
               </Button>
               <Button
                 onClick={submitEvent}
-                className="flex-1 bg-black hover:bg-gray-800 text-white rounded-2xl"
+                disabled={!newEvent.title || !newEvent.date}
+                className="bg-black hover:bg-gray-800 text-white rounded-2xl px-6"
               >
                 Save Event
               </Button>
@@ -1867,7 +1875,7 @@ const Calendar = forwardRef<CalendarRef, CalendarProps>(({ onEventsChange }, ref
       {showTimeTable && (
         <TimeTable isOpen={showTimeTable} onClose={() => setShowTimeTable(false)} />
       )}
-    </Card>
+    </div>
   );
 });
 
