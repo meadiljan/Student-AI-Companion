@@ -89,15 +89,6 @@ const OverviewCards = () => {
 
   return (
     <div className="mb-6">
-      <div className="flex items-center justify-end space-x-2 mb-4">
-        <Button 
-          variant="default" 
-          size="sm" 
-          className="h-9 gap-2 rounded-2xl text-sm bg-primary text-primary-foreground hover:bg-primary/90"
-        >
-          Setup Account
-        </Button>
-      </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {cardsData.map((card, index) => (
           <OverviewCard key={index} {...card} />

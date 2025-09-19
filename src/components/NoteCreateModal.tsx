@@ -6,6 +6,7 @@ import { X, Plus, BookOpen, Tag, ChevronDown } from 'lucide-react';
 import { useCourses } from '@/contexts/CoursesContext';
 import RichTextEditor from '@/components/RichTextEditor';
 import { cn } from '@/lib/utils';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 interface NoteCreateModalProps {
   isOpen: boolean;
@@ -39,7 +40,6 @@ const NoteCreateModal = ({
   const [tags, setTags] = useState(initialData?.tags || '');
   const [isPinned, setIsPinned] = useState(initialData?.isPinned || false);
   const [showCourseDropdown, setShowCourseDropdown] = useState(false);
-  const courseDropdownRef = useRef<HTMLDivElement>(null);
 
   // Update state when initialData changes
   useEffect(() => {
@@ -49,23 +49,6 @@ const NoteCreateModal = ({
     setTags(initialData?.tags || '');
     setIsPinned(initialData?.isPinned || false);
   }, [initialData]);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (courseDropdownRef.current && !courseDropdownRef.current.contains(event.target as Node)) {
-        setShowCourseDropdown(false);
-      }
-    };
-
-    if (showCourseDropdown) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showCourseDropdown]);
 
   const handleClose = () => {
     // Only reset form if we're not editing (i.e., creating new note)
@@ -151,59 +134,57 @@ const NoteCreateModal = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">Course</label>
-              <div className="relative" ref={courseDropdownRef}>
-                <button
-                  type="button"
-                  onClick={() => setShowCourseDropdown(!showCourseDropdown)}
-                  className="w-full p-3 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-black focus:border-transparent text-left bg-white/80 backdrop-blur-sm hover:bg-white/90 flex items-center justify-between"
-                >
-                  <span className={courseId ? "text-gray-900" : "text-gray-500"}>
-                    {courseId 
-                      ? courses.find(course => course.id === courseId)?.title || "Select a course" 
-                      : "Select a course (optional)"}
-                  </span>
-                  <ChevronDown className="w-4 h-4 text-gray-400" />
-                </button>
-                
-                {showCourseDropdown && (
-                  <div 
-                    className="absolute z-50 bottom-full mb-1 w-full bg-white/95 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl max-h-48 overflow-y-auto scrollbar-hide"
+              <Popover open={showCourseDropdown} onOpenChange={setShowCourseDropdown}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full h-12 justify-between text-left font-normal rounded-2xl border-gray-200 bg-white/80 backdrop-blur-sm hover:bg-white/90 focus:ring-2 focus:ring-black focus:border-transparent"
                   >
-                    <div className="p-2">
+                    <div className="flex items-center">
+                      <span>
+                        {courseId 
+                          ? courses.find(course => course.id === courseId)?.title || "Select a course" 
+                          : "Select a course (optional)"}
+                      </span>
+                    </div>
+                    <ChevronDown className="h-4 w-4 text-gray-500" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0 bg-white/95 backdrop-blur-xl border border-white/20 rounded-3xl shadow-2xl max-h-48 overflow-y-auto z-[200]" align="start">
+                  <div className="p-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCourseId('');
+                        setShowCourseDropdown(false);
+                      }}
+                      className="w-full text-left px-3 py-2.5 rounded-xl text-sm text-gray-500 hover:bg-gray-100 transition-colors"
+                    >
+                      No course
+                    </button>
+                    {courses.map(course => (
                       <button
+                        key={course.id}
                         type="button"
                         onClick={() => {
-                          setCourseId('');
+                          setCourseId(course.id);
                           setShowCourseDropdown(false);
                         }}
-                        className="w-full text-left px-3 py-2.5 rounded-xl text-sm text-gray-500 hover:bg-gray-100 transition-colors"
+                        className={cn(
+                          "w-full flex items-center px-3 py-2.5 rounded-xl text-left hover:bg-gray-100 transition-colors",
+                          courseId === course.id && "bg-black text-white hover:bg-gray-800"
+                        )}
                       >
-                        No course
+                        <div className={cn("w-3 h-3 rounded-full mr-3", course.color)} />
+                        <div className="flex-1">
+                          <div className="font-medium">{course.title}</div>
+                          <div className="text-xs text-gray-500 truncate">{course.instructor}</div>
+                        </div>
                       </button>
-                      {courses.map(course => (
-                        <button
-                          key={course.id}
-                          type="button"
-                          onClick={() => {
-                            setCourseId(course.id);
-                            setShowCourseDropdown(false);
-                          }}
-                          className={cn(
-                            "w-full flex items-center px-3 py-2.5 rounded-xl text-left hover:bg-gray-100 transition-colors",
-                            courseId === course.id && "bg-black text-white hover:bg-gray-800"
-                          )}
-                        >
-                          <div className={cn("w-3 h-3 rounded-full mr-3", course.color)} />
-                          <div className="flex-1">
-                            <div className="font-medium">{course.title}</div>
-                            <div className="text-xs text-gray-500 truncate">{course.instructor}</div>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
+                    ))}
                   </div>
-                )}
-              </div>
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div className="space-y-2">

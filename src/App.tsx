@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AssignmentsProvider } from "@/contexts/AssignmentsContext";
 import { CalendarEventsProvider } from "@/contexts/CalendarEventsContext";
 import { CoursesProvider } from "@/contexts/CoursesContext";
+import { UserProvider } from "@/contexts/UserContext";
 // import { TimeTableProvider } from "@/contexts/TimeTableContext";
 import MainLayout from "./components/MainLayout"; // Import the new MainLayout
 import Dashboard from "./pages/Dashboard"; // Renamed from Index
@@ -22,36 +23,35 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <CoursesProvider>
-      <AssignmentsProvider>
-        <CalendarEventsProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <Routes>
-                <Route path="/" element={<MainLayout />}>
-                  <Route index element={<Dashboard />} />
-                  <Route path="/assignments" element={<Assignments />} />
-                  <Route path="/calendar" element={<Calendar />} />
-                  <Route path="/courses" element={<Courses />} />
-                  <Route path="/courses/:courseId" element={<CourseDetails />} />
-                  <Route path="/courses/:courseId/lecture/:lectureId" element={<LecturePage />} />
-                  <Route path="/timetable" element={<Calendar />} />
-                  <Route path="/quizzes" element={<div>Quizzes Page</div>} />
-                  <Route path="/notes" element={<Notes />} />
-                  <Route path="/performance" element={<div>Performance Page</div>} />
-                  <Route path="/study-focus" element={<div>Study Focus Page</div>} />
-                  <Route path="/settings" element={<div>Settings Page</div>} />
-                  <Route path="*" element={<NotFound />} />
-                </Route>
-              </Routes>
-              <AIAssistantSearchBar />
-            </BrowserRouter>
-          </TooltipProvider>
-        </CalendarEventsProvider>
-      </AssignmentsProvider>
-    </CoursesProvider>
+    <UserProvider>
+      <CoursesProvider>
+        <AssignmentsProvider>
+          <CalendarEventsProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
+                <Routes>
+                  <Route path="/" element={<MainLayout />}>
+                    <Route index element={<Dashboard />} />
+                    <Route path="/assignments" element={<Assignments />} />
+                    <Route path="/calendar" element={<Calendar />} />
+                    <Route path="/courses" element={<Courses />} />
+                    <Route path="/courses/:courseId" element={<CourseDetails />} />
+                    <Route path="/courses/:courseId/lecture/:lectureId" element={<LecturePage />} />
+                    <Route path="/timetable" element={<Calendar />} />
+                    <Route path="/notes" element={<Notes />} />
+                    <Route path="/study-focus" element={<div>Study Focus Page</div>} />
+                    <Route path="*" element={<NotFound />} />
+                  </Route>
+                </Routes>
+                <AIAssistantSearchBar />
+              </BrowserRouter>
+            </TooltipProvider>
+          </CalendarEventsProvider>
+        </AssignmentsProvider>
+      </CoursesProvider>
+    </UserProvider>
   </QueryClientProvider>
 );
 
