@@ -3,7 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AssignmentsProvider } from "@/contexts/AssignmentsContext";
+import { TasksProvider } from "@/contexts/TasksContext";
 import { CalendarEventsProvider } from "@/contexts/CalendarEventsContext";
 import { CoursesProvider } from "@/contexts/CoursesContext";
 import { UserProvider } from "@/contexts/UserContext";
@@ -11,7 +11,7 @@ import { UserProvider } from "@/contexts/UserContext";
 import MainLayout from "./components/MainLayout"; // Import the new MainLayout
 import Dashboard from "./pages/Dashboard"; // Renamed from Index
 import Calendar from "./pages/Calendar";
-import Assignments from "./pages/Assignments";
+import Tasks from "./pages/Tasks";
 import Courses from "./pages/Courses";
 import CourseDetails from "./pages/CourseDetails";
 import LecturePage from "./pages/LecturePage";
@@ -25,7 +25,7 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <UserProvider>
       <CoursesProvider>
-        <AssignmentsProvider>
+        <TasksProvider>
           <CalendarEventsProvider>
             <TooltipProvider>
               <Toaster />
@@ -34,7 +34,7 @@ const App = () => (
                 <Routes>
                   <Route path="/" element={<MainLayout />}>
                     <Route index element={<Dashboard />} />
-                    <Route path="/assignments" element={<Assignments />} />
+                    <Route path="/tasks" element={<Tasks />} />
                     <Route path="/calendar" element={<Calendar />} />
                     <Route path="/courses" element={<Courses />} />
                     <Route path="/courses/:courseId" element={<CourseDetails />} />
@@ -49,7 +49,7 @@ const App = () => (
               </BrowserRouter>
             </TooltipProvider>
           </CalendarEventsProvider>
-        </AssignmentsProvider>
+        </TasksProvider>
       </CoursesProvider>
     </UserProvider>
   </QueryClientProvider>

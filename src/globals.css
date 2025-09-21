@@ -2,6 +2,24 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  .prose {
+    color: theme('colors.gray.700');
+  }
+  
+  .prose-headings {
+    color: theme('colors.gray.900');
+  }
+  
+  .dark .prose {
+    color: theme('colors.gray.300');
+  }
+  
+  .dark .prose-headings {
+    color: theme('colors.white');
+  }
+}
+
 /* Hide scrollbars for calendar events */
 .scrollbar-hide {
   /* Hide scrollbar for Firefox */

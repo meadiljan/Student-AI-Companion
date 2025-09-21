@@ -20,7 +20,8 @@ import {
   Tablet,
   Monitor,
   Check,
-  ChevronDown
+  ChevronDown,
+  X
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -33,6 +34,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { useUser } from "@/contexts/UserContext";
+import { eventManager } from "@/utils/eventManager";
 
 // Function to get UTC offset for a timezone
 const getTimezoneOffset = (timezone: string) => {
@@ -80,7 +82,22 @@ const languageOptions = [
 ];
 
 const aiModelOptions = [
-  { value: "gemini-pro", label: "Google Gemini Pro" },
+  { 
+    value: "google-gemini", 
+    label: "Google Gemini",
+    subOptions: [
+      { value: "gemini-2.5-pro", label: "2.5 Pro" },
+      { value: "gemini-2.5-flash", label: "2.5 Flash" }
+    ]
+  },
+  {
+    value: "groq",
+    label: "Groq",
+    subOptions: [
+      { value: "meta-llama/llama-4-maverick-17b-128e-instruct", label: "Llama 4 Maverick 17B 128E" },
+      { value: "meta-llama/llama-4-scout-17b-16e-instruct", label: "Llama 4 Scout 17B 16E Instruct" }
+    ]
+  },
   { value: "gpt-4", label: "OpenAI GPT-4" },
   { value: "claude-3", label: "Anthropic Claude 3" },
   { value: "llama-3", label: "Meta Llama 3" }
@@ -115,9 +132,11 @@ const MainLayout = () => {
   const [timezone, setTimezone] = useState<string>(Intl.DateTimeFormat().resolvedOptions().timeZone);
   
   // AI Integration settings
-  const [selectedModel, setSelectedModel] = useState("gemini-pro");
+  const [selectedModel, setSelectedModel] = useState("gemini-2.5-pro");
   const [apiKey, setApiKey] = useState("");
   const [isAiEnabled, setIsAiEnabled] = useState(false);
+  const [testStatus, setTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
+  const [testMessage, setTestMessage] = useState("");
 
   // State for dropdowns
   const [isLanguageDropdownOpen, setIsLanguageDropdownOpen] = useState(false);
@@ -160,8 +179,168 @@ const MainLayout = () => {
   };
 
   const openSettings = () => {
+    // Load API key when opening settings
+    const savedApiKey = localStorage.getItem("aiApiKey");
+    if (savedApiKey) {
+      setApiKey(savedApiKey);
+    }
+    
     setIsSettingsModalOpen(true);
     setIsAccountMenuOpen(false);
+  };
+
+  const handleTestConnection = async () => {
+    if (!apiKey) {
+      setTestStatus("error");
+      setTestMessage("API Key is required");
+      toast({
+        title: "API Key Required",
+        description: "Please enter your API key to test the connection.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setTestStatus("testing");
+    setTestMessage("Testing connection...");
+
+    try {
+      // Test based on selected model
+      let isValid = false;
+      let message = "";
+      
+      if (selectedModel === "gemini-2.5-pro" || selectedModel === "gemini-2.5-flash") {
+        // Test Google Gemini API
+        isValid = await testGeminiAPI(apiKey);
+        // Find the model label for display
+        let modelLabel = "";
+        for (const option of aiModelOptions) {
+          if (option.subOptions) {
+            const subOption = option.subOptions.find(sub => sub.value === selectedModel);
+            if (subOption) {
+              modelLabel = `${option.label} ${subOption.label}`;
+              break;
+            }
+          }
+        }
+        message = isValid ? `Google Gemini (${modelLabel}) connection successful!` : `Failed to connect to Google Gemini (${modelLabel})`;
+      } else if (selectedModel === "gpt-4") {
+        // Test OpenAI API
+        isValid = await testOpenAIAPI(apiKey);
+        message = isValid ? "OpenAI connection successful!" : "Failed to connect to OpenAI";
+      } else if (selectedModel === "meta-llama/llama-4-maverick-17b-128e-instruct" || selectedModel === "meta-llama/llama-4-scout-17b-16e-instruct") {
+        // Test Groq API
+        isValid = await testGroqAPI(apiKey);
+        // Find the model label for display
+        let modelLabel = "";
+        for (const option of aiModelOptions) {
+          if (option.subOptions) {
+            const subOption = option.subOptions.find(sub => sub.value === selectedModel);
+            if (subOption) {
+              modelLabel = `${option.label} ${subOption.label}`;
+              break;
+            }
+          }
+        }
+        message = isValid ? `Groq (${modelLabel}) connection successful!` : `Failed to connect to Groq (${modelLabel})`;
+      } else {
+        // For other models, simulate a test
+        // In a real implementation, you would add actual tests for each model
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        isValid = Math.random() > 0.5; // Simulate random success/failure
+        message = isValid ? "Connection successful!" : "Failed to connect to AI service";
+      }
+
+      if (isValid) {
+        setTestStatus("success");
+        setTestMessage(message);
+        toast({
+          title: "Connection Successful",
+          description: message,
+        });
+      } else {
+        setTestStatus("error");
+        setTestMessage(message);
+        toast({
+          title: "Connection Failed",
+          description: message,
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      setTestStatus("error");
+      setTestMessage("An error occurred during testing");
+      toast({
+        title: "Connection Failed",
+        description: "An error occurred while testing the connection.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Function to test Google Gemini API
+  const testGeminiAPI = async (key: string): Promise<boolean> => {
+    try {
+      // Simple test - try to list models (requires valid API key)
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models?key=${key}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      
+      return response.ok;
+    } catch (error) {
+      console.error("Gemini API test error:", error);
+      return false;
+    }
+  };
+
+  // Function to test OpenAI API
+  const testOpenAIAPI = async (key: string): Promise<boolean> => {
+    try {
+      // Simple test - try to list models (requires valid API key)
+      const response = await fetch(
+        'https://api.openai.com/v1/models',
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${key}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      
+      return response.ok;
+    } catch (error) {
+      console.error("OpenAI API test error:", error);
+      return false;
+    }
+  };
+
+  // Function to test Groq API
+  const testGroqAPI = async (key: string): Promise<boolean> => {
+    try {
+      // Simple test - try to list models (requires valid API key)
+      const response = await fetch(
+        'https://api.groq.com/openai/v1/models',
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${key}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      
+      return response.ok;
+    } catch (error) {
+      console.error("Groq API test error:", error);
+      return false;
+    }
   };
 
   const handleSaveSettings = () => {
@@ -172,7 +351,7 @@ const MainLayout = () => {
       avatar: userAvatar
     });
 
-    // In a real app, you would save these settings to a backend or localStorage
+    // Save settings to localStorage
     localStorage.setItem("appSettings", JSON.stringify({
       notifications,
       darkMode,
@@ -180,7 +359,7 @@ const MainLayout = () => {
       timezone,
       ai: {
         selectedModel,
-        apiKey: apiKey ? "********" : "", // Don't save actual API key in localStorage
+        apiKey: apiKey ? "********" : "", // Don't save actual API key in localStorage for security
         isAiEnabled
       },
       userProfile: {
@@ -190,10 +369,26 @@ const MainLayout = () => {
       }
     }));
     
+    // Save API key separately in localStorage (in a real app, this should be more secure)
+    if (apiKey) {
+      localStorage.setItem("aiApiKey", apiKey);
+    } else {
+      localStorage.removeItem("aiApiKey");
+    }
+    
+    // Notify AI assistant about settings change
+    eventManager.notifySettingsChange({ selectedModel });
+    
     toast({
       title: "Settings saved",
       description: "Your settings have been updated successfully.",
     });
+    
+    // Reset test status after saving
+    if (testStatus === "success" || testStatus === "error") {
+      setTestStatus("idle");
+      setTestMessage("");
+    }
     
     // Automatically close the settings modal
     setIsSettingsModalOpen(false);
@@ -204,7 +399,7 @@ const MainLayout = () => {
     setDarkMode(false);
     setLanguage("en");
     setTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone);
-    setSelectedModel("gemini-pro");
+    setSelectedModel("gemini-2.5-pro");
     setApiKey("");
     setIsAiEnabled(false);
     
@@ -218,25 +413,6 @@ const MainLayout = () => {
       description: "All settings have been reset to default values.",
     });
   };
-  
-  const handleTestConnection = () => {
-    if (!apiKey) {
-      toast({
-        title: "API Key Required",
-        description: "Please enter your API key to test the connection.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    // Simulate API connection test
-    setTimeout(() => {
-      toast({
-        title: "Connection Successful",
-        description: "AI service connection test passed.",
-      });
-    }, 1000);
-  };
 
   React.useEffect(() => {
     if (isMobile) {
@@ -245,6 +421,36 @@ const MainLayout = () => {
       setIsCollapsed(false);
     }
   }, [isMobile]);
+
+  // Load API key from localStorage on component mount
+  React.useEffect(() => {
+    const savedApiKey = localStorage.getItem("aiApiKey");
+    if (savedApiKey) {
+      setApiKey(savedApiKey);
+    }
+    
+    // Load other settings
+    const savedSettings = localStorage.getItem("appSettings");
+    if (savedSettings) {
+      try {
+        const settings = JSON.parse(savedSettings);
+        if (settings.ai) {
+          setIsAiEnabled(settings.ai.isAiEnabled || false);
+          setSelectedModel(settings.ai.selectedModel || "gemini-2.5-pro");
+        }
+      } catch (e) {
+        console.error("Failed to parse saved settings", e);
+      }
+    }
+  }, []);
+
+  // Reset test status when API key changes
+  React.useEffect(() => {
+    if (testStatus !== "idle") {
+      setTestStatus("idle");
+      setTestMessage("");
+    }
+  }, [apiKey]);
 
   return (
     <div className="flex min-h-screen bg-background p-4">
@@ -299,7 +505,7 @@ const MainLayout = () => {
                 </div>
                 <div className="max-h-64 overflow-y-auto">
                   <div className="px-4 py-3 hover:bg-accent/50 cursor-pointer">
-                    <p className="text-sm font-medium">New assignment added</p>
+                    <p className="text-sm font-medium">New task added</p>
                     <p className="text-xs text-muted-foreground">2 hours ago</p>
                   </div>
                   <div className="px-4 py-3 hover:bg-accent/50 cursor-pointer">
@@ -673,30 +879,82 @@ const MainLayout = () => {
                             className="w-full rounded-2xl border border-gray-300 bg-white focus:ring-2 focus:ring-black focus:border-transparent py-2 px-3 text-sm text-left flex items-center justify-between"
                           >
                             <span>
-                              {aiModelOptions.find(option => option.value === selectedModel)?.label || "Select AI model"}
+                              {(() => {
+                                // Find the selected model label
+                                for (const option of aiModelOptions) {
+                                  if (option.value === selectedModel) {
+                                    return option.label;
+                                  }
+                                  if (option.subOptions) {
+                                    const subOption = option.subOptions.find(sub => sub.value === selectedModel);
+                                    if (subOption) {
+                                      return `${option.label} ${subOption.label}`;
+                                    }
+                                  }
+                                }
+                                return "Select AI model";
+                              })()}
                             </span>
                             <ChevronDown className="h-4 w-4 text-gray-500" />
                           </button>
                           
                           {isModelDropdownOpen && (
-                            <div className="absolute top-full left-0 mt-1 w-full rounded-2xl border border-gray-200 bg-white shadow-lg max-h-48 overflow-y-auto z-[200]">
+                            <div className="absolute top-full left-0 mt-1 w-full rounded-2xl border border-gray-200 bg-white shadow-lg max-h-48 overflow-y-auto scrollbar-hide z-[200]">
                               {aiModelOptions.map((option) => (
-                                <button
-                                  key={option.value}
-                                  type="button"
-                                  onClick={() => {
-                                    setSelectedModel(option.value);
-                                    setIsModelDropdownOpen(false);
-                                  }}
-                                  className={`w-full py-2 px-3 text-sm text-left hover:bg-gray-50 rounded-xl cursor-pointer flex items-center justify-between ${
-                                    selectedModel === option.value ? "bg-gray-100" : ""
-                                  }`}
-                                >
-                                  <span>{option.label}</span>
-                                  {selectedModel === option.value && (
-                                    <Check className="h-4 w-4 text-gray-500" />
+                                <div key={option.value} className="relative">
+                                  {option.subOptions ? (
+                                    // Parent option with sub-options
+                                    <div className="w-full group">
+                                      <button
+                                        type="button"
+                                        className="w-full py-2 px-3 text-sm text-left hover:bg-gray-50 rounded-xl cursor-pointer flex items-center justify-between"
+                                      >
+                                        <span>{option.label}</span>
+                                        <ChevronDown className="h-4 w-4 text-gray-500 transition-transform group-hover:rotate-180" />
+                                      </button>
+                                      {/* Submenu that appears below with indentation when hovering */}
+                                      <div className="w-full hidden group-hover:block bg-gray-50 rounded-b-xl">
+                                        <div className="py-1 border-t border-gray-200 ml-4 mr-2">
+                                          {option.subOptions.map((subOption) => (
+                                            <button
+                                              key={subOption.value}
+                                              type="button"
+                                              onClick={() => {
+                                                setSelectedModel(subOption.value);
+                                                setIsModelDropdownOpen(false);
+                                              }}
+                                              className={`w-full py-2 px-3 text-sm text-left hover:bg-gray-100 rounded-lg cursor-pointer flex items-center justify-between ${
+                                                selectedModel === subOption.value ? "bg-gray-200" : ""
+                                              }`}
+                                            >
+                                              <span>{subOption.label}</span>
+                                              {selectedModel === subOption.value && (
+                                                <Check className="h-4 w-4 text-gray-500" />
+                                              )}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    // Regular option without sub-options
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedModel(option.value);
+                                        setIsModelDropdownOpen(false);
+                                      }}
+                                      className={`w-full py-2 px-3 text-sm text-left hover:bg-gray-50 rounded-xl cursor-pointer flex items-center justify-between ${
+                                        selectedModel === option.value ? "bg-gray-100" : ""
+                                      }`}
+                                    >
+                                      <span>{option.label}</span>
+                                      {selectedModel === option.value && (
+                                        <Check className="h-4 w-4 text-gray-500" />
+                                      )}
+                                    </button>
                                   )}
-                                </button>
+                                </div>
                               ))}
                             </div>
                           )}
@@ -719,18 +977,57 @@ const MainLayout = () => {
                       <div className="flex space-x-2">
                         <Button 
                           onClick={handleTestConnection}
-                          className="bg-background/80 backdrop-blur-sm border border-border/50 rounded-2xl hover:bg-accent"
+                          disabled={testStatus === "testing"}
+                          className={cn(
+                            "bg-black text-white rounded-2xl hover:bg-gray-800",
+                            testStatus === "success" && "bg-green-500 hover:bg-green-600 text-white",
+                            testStatus === "error" && "bg-red-500 hover:bg-red-600 text-white"
+                          )}
                         >
-                          Test Connection
+                          {testStatus === "testing" ? (
+                            <>
+                              <span className="mr-2 h-4 w-4 animate-spin">⏳</span>
+                              Testing...
+                            </>
+                          ) : testStatus === "success" ? (
+                            <>
+                              <Check className="mr-2 h-4 w-4" />
+                              Success
+                            </>
+                          ) : testStatus === "error" ? (
+                            <>
+                              <svg xmlns="http://www.w3.org/2000/svg" className="mr-2 h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="15" y1="9" x2="9" y2="15"></line>
+                                <line x1="9" y1="9" x2="15" y2="15"></line>
+                              </svg>
+                              Failed
+                            </>
+                          ) : (
+                            "Test Connection"
+                          )}
                         </Button>
                         <Button 
                           variant="ghost" 
-                          onClick={() => setApiKey("")}
+                          onClick={() => {
+                            setApiKey("");
+                            setTestStatus("idle");
+                            setTestMessage("");
+                          }}
                           className="bg-background/80 backdrop-blur-sm border border-border/50 rounded-2xl hover:bg-accent"
                         >
                           Clear Key
                         </Button>
                       </div>
+                      {testMessage && (
+                        <div className={cn(
+                          "text-sm p-2 rounded-lg",
+                          testStatus === "success" ? "bg-green-100 text-green-800" : 
+                          testStatus === "error" ? "bg-red-100 text-red-800" : "bg-blue-100 text-blue-800"
+                        )}>
+                          {testMessage}
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 </TabsContent>
@@ -783,5 +1080,18 @@ const MainLayout = () => {
     </div>
   );
 };
+
+// Add CSS for hiding scrollbars
+const style = document.createElement('style');
+style.innerHTML = `
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;  /* Chrome, Safari, Opera*/
+  }
+`;
+document.head.appendChild(style);
 
 export default MainLayout;

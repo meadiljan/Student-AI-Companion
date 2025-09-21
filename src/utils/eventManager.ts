@@ -9,9 +9,14 @@ interface CalendarEvent {
 
 type EventListener = (event: Omit<CalendarEvent, 'id'>) => void;
 
+// Settings change listener type
+type SettingsChangeListener = (settings: { selectedModel: string }) => void;
+
 class EventManager {
   private listeners: EventListener[] = [];
+  private settingsChangeListeners: SettingsChangeListener[] = [];
 
+  // Calendar event methods
   addListener(listener: EventListener) {
     this.listeners.push(listener);
   }
@@ -24,7 +29,20 @@ class EventManager {
     // Notify all listeners (calendar components)
     this.listeners.forEach(listener => listener(eventData));
   }
+
+  // Settings change methods
+  addSettingsChangeListener(listener: SettingsChangeListener) {
+    this.settingsChangeListeners.push(listener);
+  }
+
+  removeSettingsChangeListener(listener: SettingsChangeListener) {
+    this.settingsChangeListeners = this.settingsChangeListeners.filter(l => l !== listener);
+  }
+
+  notifySettingsChange(settings: { selectedModel: string }) {
+    this.settingsChangeListeners.forEach(listener => listener(settings));
+  }
 }
 
 export const eventManager = new EventManager();
-export type { CalendarEvent, EventListener };
+export type { CalendarEvent, EventListener, SettingsChangeListener };

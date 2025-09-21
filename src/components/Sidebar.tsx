@@ -30,8 +30,8 @@ const navItems = [
     icon: LayoutDashboard,
   },
   {
-    title: "Assignments",
-    href: "/assignments",
+    title: "Tasks",
+    href: "/tasks",
     icon: Book,
   },
   {

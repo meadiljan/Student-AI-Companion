@@ -13,32 +13,32 @@ import {
   Trash2
 } from 'lucide-react';
 import { useCourses } from '@/contexts/CoursesContext';
-import { Assignment } from '@/contexts/AssignmentsContext';
+import { Task } from '@/contexts/TasksContext';
 
-interface AssignmentDetailModalProps {
-  assignment: Assignment;
+interface TaskDetailModalProps {
+  task: Task;
   isOpen: boolean;
   onClose: () => void;
-  onEdit: (assignment: Assignment) => void;
+  onEdit: (task: Task) => void;
   onDelete: (id: string) => void;
   onToggleStar: (id: string) => void;
   onToggleComplete: (id: string) => void;
 }
 
-const AssignmentDetailModal = ({
-  assignment,
+const TaskDetailModal = ({
+  task,
   isOpen,
   onClose,
   onEdit,
   onDelete,
   onToggleStar,
   onToggleComplete
-}: AssignmentDetailModalProps) => {
+}: TaskDetailModalProps) => {
   const { courses } = useCourses();
   
   if (!isOpen) return null;
 
-  const course = courses.find(c => c.title === assignment.course);
+  const course = courses.find(c => c.title === task.course);
 
   const getStatusBadge = (status: string, completed: boolean) => {
     if (completed) return { color: "bg-green-100 text-green-700 border-green-200", text: "Completed" };
@@ -76,7 +76,7 @@ const AssignmentDetailModal = ({
     }
   };
 
-  const statusBadge = getStatusBadge(assignment.status, assignment.completed);
+  const statusBadge = getStatusBadge(task.status, task.completed);
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -85,11 +85,11 @@ const AssignmentDetailModal = ({
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-2">
-              <div className={`w-3 h-3 rounded-full ${getPriorityColor(assignment.priority)}`} />
+              <div className={`w-3 h-3 rounded-full ${getPriorityColor(task.priority)}`} />
               <h2 className="text-2xl font-bold text-black truncate">
-                {assignment.title}
+                {task.title}
               </h2>
-              {assignment.starred && <Star className="w-5 h-5 text-yellow-500 fill-current" />}
+              {task.starred && <Star className="w-5 h-5 text-yellow-500 fill-current" />}
             </div>
             
             {course && (
@@ -102,12 +102,12 @@ const AssignmentDetailModal = ({
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
               <div className="flex items-center gap-1">
                 <Calendar className="w-4 h-4" />
-                <span>Due: {formatDate(assignment.dueDate)}</span>
+                <span>Due: {formatDate(task.dueDate)}</span>
               </div>
-              {assignment.dueTime && (
+              {task.dueTime && (
                 <div className="flex items-center gap-1">
                   <Clock className="w-4 h-4" />
-                  <span>{assignment.dueTime}</span>
+                  <span>{task.dueTime}</span>
                 </div>
               )}
             </div>
@@ -124,11 +124,11 @@ const AssignmentDetailModal = ({
         </div>
 
         {/* Description */}
-        {assignment.description && (
+        {task.description && (
           <div className="mb-4">
             <h3 className="font-semibold text-foreground mb-2">Description</h3>
             <div className="bg-muted/50 rounded-2xl p-4">
-              <p className="text-foreground">{assignment.description}</p>
+              <p className="text-foreground">{task.description}</p>
             </div>
           </div>
         )}
@@ -162,29 +162,29 @@ const AssignmentDetailModal = ({
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => onToggleStar(assignment.id)}
+              onClick={() => onToggleStar(task.id)}
               className={`rounded-2xl px-4 py-2 h-10 ${
-                assignment.starred 
+                task.starred 
                   ? "bg-yellow-500/10 text-yellow-600 hover:bg-yellow-500/20" 
                   : "text-gray-600 hover:bg-gray-100"
               }`}
             >
-              <Star className={`w-4 h-4 mr-2 ${assignment.starred ? "fill-current" : ""}`} />
-              {assignment.starred ? "Unstar" : "Star"}
+              <Star className={`w-4 h-4 mr-2 ${task.starred ? "fill-current" : ""}`} />
+              {task.starred ? "Unstar" : "Star"}
             </Button>
             
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => onToggleComplete(assignment.id)}
+              onClick={() => onToggleComplete(task.id)}
               className={`rounded-2xl px-4 py-2 h-10 ${
-                assignment.completed 
+                task.completed 
                   ? "bg-green-500/10 text-green-600 hover:bg-green-500/20" 
                   : "text-gray-600 hover:bg-gray-100"
               }`}
             >
               <Flag className="w-4 h-4 mr-2" />
-              {assignment.completed ? "Mark Incomplete" : "Mark Complete"}
+              {task.completed ? "Mark Incomplete" : "Mark Complete"}
             </Button>
           </div>
           
@@ -192,7 +192,7 @@ const AssignmentDetailModal = ({
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => onEdit(assignment)}
+              onClick={() => onEdit(task)}
               className="rounded-2xl px-4 py-2 h-10 text-gray-600 hover:bg-gray-100"
             >
               <Edit3 className="w-4 h-4 mr-2" />
@@ -202,7 +202,7 @@ const AssignmentDetailModal = ({
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => onDelete(assignment.id)}
+              onClick={() => onDelete(task.id)}
               className="rounded-2xl px-4 py-2 h-10 text-red-500 hover:bg-red-50 hover:text-red-700"
             >
               <Trash2 className="w-4 h-4 mr-2" />
@@ -215,4 +215,4 @@ const AssignmentDetailModal = ({
   );
 };
 
-export default AssignmentDetailModal;
+export default TaskDetailModal;

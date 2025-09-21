@@ -11,13 +11,13 @@ import {
   ChevronDown
 } from "lucide-react";
 import { useCourses } from "@/contexts/CoursesContext";
-import { Assignment } from "@/contexts/AssignmentsContext";
+import { Task } from "@/contexts/TasksContext";
 import { cn } from "@/lib/utils";
 
-interface AssignmentEditModalProps {
+interface TaskEditModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (assignmentData: {
+  onSave: (taskData: {
     title: string;
     description: string;
     dueDate: string;
@@ -35,12 +35,12 @@ interface AssignmentEditModalProps {
   };
 }
 
-const AssignmentEditModal = ({
+const TaskEditModal = ({
   isOpen,
   onClose,
   onSave,
   initialData
-}: AssignmentEditModalProps) => {
+}: TaskEditModalProps) => {
   const { courses } = useCourses();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -234,7 +234,7 @@ const AssignmentEditModal = ({
       <div className="bg-white/95 backdrop-blur-xl rounded-3xl p-8 w-full max-w-2xl mx-4 shadow-2xl border border-white/20">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-black">
-            {initialData ? "Edit Assignment" : "Create New Assignment"}
+            {initialData ? "Edit Task" : "Create New Task"}
           </h2>
           <button
             onClick={handleClose}
@@ -248,9 +248,9 @@ const AssignmentEditModal = ({
           {/* Title and Course */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Assignment Title</label>
+              <label className="text-sm font-medium text-gray-700">Task Title</label>
               <Input
-                placeholder="Enter assignment title"
+                placeholder="Enter task title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 className="rounded-2xl border-gray-200 bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-black focus:border-transparent h-12"
@@ -313,7 +313,7 @@ const AssignmentEditModal = ({
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700">Description</label>
             <Textarea
-              placeholder="Add assignment description (optional)"
+              placeholder="Add task description (optional)"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className="rounded-2xl border-gray-200 bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-black focus:border-transparent resize-none"
@@ -486,7 +486,7 @@ const AssignmentEditModal = ({
               className="bg-black hover:bg-gray-800 disabled:bg-gray-300 text-white rounded-2xl px-6 py-3 h-12 font-medium"
             >
               <Plus className="w-4 h-4 mr-2" />
-              {initialData ? "Update Assignment" : "Create Assignment"}
+              {initialData ? "Update Task" : "Create Task"}
             </Button>
           </div>
         </div>
@@ -495,4 +495,4 @@ const AssignmentEditModal = ({
   );
 };
 
-export default AssignmentEditModal;
+export default TaskEditModal;
