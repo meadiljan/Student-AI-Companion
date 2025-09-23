@@ -8,6 +8,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { motion, AnimatePresence } from "framer-motion";
 import { Task } from "@/contexts/TasksContext";
+import { bulkTasks as bulkTasksApi, listTasks as listTasksApi, analytics as analyticsApi } from "@/services/agentApi";
 import { useTasks } from "@/contexts/TasksContext";
 
 interface CalendarEvent {
@@ -552,7 +553,7 @@ const getNextWeekday = (targetDay: number): Date => {
 export default function AIAssistantSearchBar(props: AIAssistantSearchBarProps = {}) {
   const { onCreateEvent } = props;
   const { toast } = useToast();
-  const { tasks, addTask, updateTask, deleteTask, toggleCompleted, toggleStarred } = useTasks();
+  const { tasks, addTask, updateTask, deleteTask, toggleCompleted, toggleStarred, refreshTasks } = useTasks();
   const [query, setQuery] = useState("");
   const [isExpanded, setIsExpanded] = useState(false);
   const [showCommandMenu, setShowCommandMenu] = useState(false);
@@ -569,6 +570,21 @@ export default function AIAssistantSearchBar(props: AIAssistantSearchBarProps = 
 
   // State to track when chat mode is active for animation
   const [isChatModeActive, setIsChatModeActive] = useState(false);
+
+  // Conversation memory for Agent mode (pending confirmations and clarifications)
+  type PendingAgentAction = {
+    action: string;
+    criteria?: any;
+    taskIds?: string[];
+    taskData?: any;
+    humanSummary?: string;
+  };
+  type ClarificationContext = {
+    originalQuery: string;
+    question?: string;
+  };
+  const [pendingAgentAction, setPendingAgentAction] = useState<PendingAgentAction | null>(null);
+  const [clarificationContext, setClarificationContext] = useState<ClarificationContext | null>(null);
 
   // Command options
   const commands = [
@@ -712,291 +728,62 @@ export default function AIAssistantSearchBar(props: AIAssistantSearchBarProps = 
     
     // Check if it's a command
     if (effectiveCommand === 'create') {
-      // Handle create command
+      // First: handle pending confirmations or clarifications in Agent mode
+      const lower = queryToProcess.trim().toLowerCase();
+      const isAffirm = ["yes","y","confirm","do it","proceed","go ahead"].includes(lower);
+      const isDeny = ["no","n","cancel","stop","abort"].includes(lower);
+
+      // If we have a pending destructive action awaiting confirmation
+      if (pendingAgentAction && (isAffirm || isDeny)) {
+        // Append user reply to chat
+        setChatMessages(prev => ([...prev, { role: 'user', content: queryToProcess }]));
+        setQuery('');
+
+        if (isDeny) {
+          setPendingAgentAction(null);
+          setChatMessages(prev => ([...prev, { role: 'assistant', content: 'Okay, canceled that action.' }]));
+          return;
+        }
+
+        // Execute the stored action
+        executePendingAction(pendingAgentAction);
+        setPendingAgentAction(null);
+        return;
+      }
+
+      // If AI asked a clarification question previously
+      if (clarificationContext && !isAffirm && !isDeny) {
+        // Combine original query with the new user info and send back to AI
+        const combined = `${clarificationContext.originalQuery}\nUser clarification: ${queryToProcess}`;
+        setChatMessages(prev => ([...prev, { role: 'user', content: queryToProcess }]));
+        setQuery('');
+        setClarificationContext(null);
+        callAIModelForAgent(combined);
+        return;
+      }
+
+      // Handle Agent mode with AI-powered understanding
       const createQuery = queryToProcess;
       
-      // First try to parse as a task creation
-      const taskData = parseTaskFromQuery(createQuery);
-      if (taskData) {
-        // Show task creation animation in chat mode
-        setIsCreatingTask(true);
-        setActiveCommand('create'); // Set active command to show in UI
-        
-        // Add a message to show the creation process
-        setChatMessages([
-          { role: 'user', content: createQuery },
-          { role: 'assistant', content: `Creating task: "${taskData.title}"...` }
-        ]);
-        
-        // Simulate AI processing delay
-        setTimeout(() => {
-          // Actually create the task
-          addTask(taskData);
-          
-          // Update chat with success message
-          setChatMessages(prev => [
-            ...prev.slice(0, -1), // Remove the "creating" message
-            { 
-              role: 'assistant', 
-              content: `✅ Task "${taskData.title}" created successfully!
-
-**Details:**
-- Due: ${taskData.dueDate}${taskData.dueTime ? ` at ${taskData.dueTime}` : ''}
-- Priority: ${taskData.priority}
-- Course: ${taskData.course}` 
-            }
-          ]);
-          
-          // Reset states after a delay
-          setTimeout(() => {
-            setIsCreatingTask(false);
-            setQuery(''); // Clear the input after creating task
-            // Keep activeCommand to maintain the window open
-            // Don't collapse the search bar immediately to show success message
-          }, 3000);
-          
-          // Show success toast
-          toast({
-            title: "Task Created! 🎉",
-            description: `"${taskData.title}" has been added to your tasks.`
-          });
-          
-          console.log('Task created successfully:', taskData);
-        }, 1500); // Simulate processing delay
-        return;
-      }
+      // Set active command and add user message to chat
+      setActiveCommand('create');
+      const newMessages = [
+        ...chatMessages,
+        { role: 'user', content: createQuery }
+      ];
       
-      // Try parsing as task update
-      const updateData = parseTaskUpdateFromQuery(createQuery, tasks);
-      if (updateData && updateData.taskId) {
-        // Show task update animation in chat mode
-        setIsCreatingTask(true);
-        setActiveCommand('create'); // Set active command to show in UI
-        
-        // Find the task to update
-        const taskToUpdate = tasks.find(task => task.id === updateData.taskId);
-        if (taskToUpdate) {
-          // Add a message to show the update process
-          setChatMessages([
-            { role: 'user', content: createQuery },
-            { role: 'assistant', content: `Updating task: "${taskToUpdate.title}"...` }
-          ]);
-          
-          // Simulate AI processing delay
-          setTimeout(() => {
-            // Actually update the task
-            updateTask(updateData.taskId!, updateData.updates);
-            
-            // Create update details string
-            const updateDetails = Object.entries(updateData.updates)
-              .map(([key, value]) => `- ${key}: ${value}`)
-              .join('\n');
-            
-            // Update chat with success message
-            setChatMessages(prev => [
-              ...prev.slice(0, -1), // Remove the "updating" message
-              { 
-                role: 'assistant', 
-                content: `✅ Task "${taskToUpdate.title}" updated successfully!\n\n**Updated Details:**\n${updateDetails}` 
-              }
-            ]);
-            
-            // Reset states after a delay
-            setTimeout(() => {
-              setIsCreatingTask(false);
-              setQuery(''); // Clear the input after updating task
-            }, 3000);
-            
-            // Show success toast
-            toast({
-              title: "Task Updated! 🎉",
-              description: `"${taskToUpdate.title}" has been updated.`
-            });
-            
-            console.log('Task updated successfully:', updateData);
-          }, 1500); // Simulate processing delay
-        }
-        return;
-      }
+      setChatMessages(newMessages);
+      setQuery('');
       
-      // Try parsing as task deletion
-      const taskIdToDelete = parseTaskDeletionFromQuery(createQuery, tasks);
-      if (taskIdToDelete) {
-        // Show task deletion animation in chat mode
-        setIsCreatingTask(true);
-        setActiveCommand('create'); // Set active command to show in UI
-        
-        // Find the task to delete
-        const taskToDelete = tasks.find(task => task.id === taskIdToDelete);
-        if (taskToDelete) {
-          // Add a message to show the deletion process
-          setChatMessages([
-            { role: 'user', content: createQuery },
-            { role: 'assistant', content: `Deleting task: "${taskToDelete.title}"...` }
-          ]);
-          
-          // Simulate AI processing delay
-          setTimeout(() => {
-            // Actually delete the task
-            deleteTask(taskIdToDelete);
-            
-            // Update chat with success message
-            setChatMessages(prev => [
-              ...prev.slice(0, -1), // Remove the "deleting" message
-              { 
-                role: 'assistant', 
-                content: `✅ Task "${taskToDelete.title}" deleted successfully!` 
-              }
-            ]);
-            
-            // Reset states after a delay
-            setTimeout(() => {
-              setIsCreatingTask(false);
-              setQuery(''); // Clear the input after deleting task
-            }, 3000);
-            
-            // Show success toast
-            toast({
-              title: "Task Deleted! 🎉",
-              description: `"${taskToDelete.title}" has been removed from your tasks.`
-            });
-            
-            console.log('Task deleted successfully:', taskIdToDelete);
-          }, 1500); // Simulate processing delay
-        }
-        return;
-      }
+      // Call AI model for intelligent task management
+      callAIModelForAgent(createQuery);
       
-      // Try parsing as task completion toggle
-      const taskIdToComplete = parseTaskCompletionFromQuery(createQuery, tasks);
-      if (taskIdToComplete) {
-        // Show task completion animation in chat mode
-        setIsCreatingTask(true);
-        setActiveCommand('create'); // Set active command to show in UI
-        
-        // Find the task to complete
-        const taskToComplete = tasks.find(task => task.id === taskIdToComplete);
-        if (taskToComplete) {
-          // Add a message to show the completion process
-          setChatMessages([
-            { role: 'user', content: createQuery },
-            { role: 'assistant', content: `Marking task as completed: "${taskToComplete.title}"...` }
-          ]);
-          
-          // Simulate AI processing delay
-          setTimeout(() => {
-            // Actually toggle completion status
-            toggleCompleted(taskIdToComplete);
-            
-            // Update chat with success message
-            setChatMessages(prev => [
-              ...prev.slice(0, -1), // Remove the "completing" message
-              { 
-                role: 'assistant', 
-                content: `✅ Task "${taskToComplete.title}" marked as completed!` 
-              }
-            ]);
-            
-            // Reset states after a delay
-            setTimeout(() => {
-              setIsCreatingTask(false);
-              setQuery(''); // Clear the input after completing task
-            }, 3000);
-            
-            // Show success toast
-            toast({
-              title: "Task Completed! 🎉",
-              description: `"${taskToComplete.title}" has been marked as completed.`
-            });
-            
-            console.log('Task completed successfully:', taskIdToComplete);
-          }, 1500); // Simulate processing delay
+      // Focus the input field after submitting
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
         }
-        return;
-      }
-      
-      // Try parsing as task starring toggle
-      const taskIdToStar = parseTaskStarringFromQuery(createQuery, tasks);
-      if (taskIdToStar) {
-        // Show task starring animation in chat mode
-        setIsCreatingTask(true);
-        setActiveCommand('create'); // Set active command to show in UI
-        
-        // Find the task to star
-        const taskToStar = tasks.find(task => task.id === taskIdToStar);
-        if (taskToStar) {
-          // Add a message to show the starring process
-          setChatMessages([
-            { role: 'user', content: createQuery },
-            { role: 'assistant', content: `Starring task: "${taskToStar.title}"...` }
-          ]);
-          
-          // Simulate AI processing delay
-          setTimeout(() => {
-            // Actually toggle starring status
-            toggleStarred(taskIdToStar);
-            
-            // Update chat with success message
-            setChatMessages(prev => [
-              ...prev.slice(0, -1), // Remove the "starring" message
-              { 
-                role: 'assistant', 
-                content: `✅ Task "${taskToStar.title}" has been starred!` 
-              }
-            ]);
-            
-            // Reset states after a delay
-            setTimeout(() => {
-              setIsCreatingTask(false);
-              setQuery(''); // Clear the input after starring task
-            }, 3000);
-            
-            // Show success toast
-            toast({
-              title: "Task Starred! ⭐",
-              description: `"${taskToStar.title}" has been starred.`
-            });
-            
-            console.log('Task starred successfully:', taskIdToStar);
-          }, 1500); // Simulate processing delay
-        }
-        return;
-      }
-      
-      // Try parsing as event if all task parsing fails
-      const eventData = parseEventFromQuery(createQuery);
-      if (eventData) {
-        // Use event manager to notify calendar components
-        eventManager.createEvent(eventData);
-        
-        // Also call the prop callback if provided (for backward compatibility)
-        if (onCreateEvent) {
-          onCreateEvent(eventData);
-        }
-        
-        setQuery(''); // Clear the input after creating event
-        setActiveCommand(null); // Clear active command
-        setIsExpanded(false); // Collapse the search bar
-        
-        // Show success toast
-        toast({
-          title: "Event Created! 🎉",
-          description: `"${eventData.title}" scheduled for ${eventData.date.toLocaleDateString()} at ${eventData.time}`
-        });
-        
-        console.log('Event created successfully:', eventData);
-      } else {
-        // Show info toast for unrecognized create queries
-        toast({
-          title: "Could not process request",
-          description: "Please provide more details about what you want to do.",
-          variant: "destructive"
-        });
-        
-        // Reset states
-        setActiveCommand(null);
-        setIsCreatingTask(false);
-      }
+      }, 0);
     } else if (effectiveCommand === 'ask') {
       // Handle ask command
       const askQuery = queryToProcess;
@@ -1049,6 +836,34 @@ export default function AIAssistantSearchBar(props: AIAssistantSearchBarProps = 
       
       // Call AI API for follow-up
       callAIModel(query);
+      
+      // Focus the input field after submitting
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+        }
+      }, 0);
+    } else if (effectiveCommand === 'create' && query.trim()) {
+      // Handle follow-up requests in Agent mode
+      // Scroll to bottom when submitting a new query
+      if (chatContainerRef.current) {
+        const container = chatContainerRef.current;
+        setTimeout(() => {
+          container.scrollTop = container.scrollHeight;
+        }, 100);
+      }
+      
+      setActiveCommand('create');
+      const newMessages = [
+        ...chatMessages,
+        { role: 'user', content: query }
+      ];
+      
+      setChatMessages(newMessages);
+      setQuery('');
+      
+      // Call AI API for follow-up task management
+      callAIModelForAgent(query);
       
       // Focus the input field after submitting
       setTimeout(() => {
@@ -1122,6 +937,851 @@ export default function AIAssistantSearchBar(props: AIAssistantSearchBarProps = 
       eventManager.removeSettingsChangeListener(handleSettingsChange);
     };
   }, []);
+
+  // Helper function to filter tasks based on criteria
+  const filterTasksByCriteria = (tasks: any[], criteria: any, action: string) => {
+    if (!criteria) return tasks;
+    
+    return tasks.filter(task => {
+      // Common filters
+      if (criteria.completed !== undefined && task.completed !== criteria.completed) return false;
+      if (criteria.status && task.status !== criteria.status) return false;
+      if (criteria.priority && task.priority !== criteria.priority) return false;
+      if (criteria.course && task.course !== criteria.course) return false;
+      if (criteria.starred !== undefined && task.starred !== criteria.starred) return false;
+      
+      // Date-based filters
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const taskDate = new Date(task.dueDate);
+      taskDate.setHours(0, 0, 0, 0);
+      
+      if (criteria.overdue || action === 'CLEAR_OVERDUE') {
+        const isOverdue = taskDate < today && !task.completed;
+        if (!isOverdue) return false;
+      }
+      
+      if (criteria.today) {
+        if (taskDate.getTime() !== today.getTime()) return false;
+      }
+      
+      if (criteria.thisWeek) {
+        const weekFromNow = new Date(today);
+        weekFromNow.setDate(today.getDate() + 7);
+        if (taskDate < today || taskDate > weekFromNow) return false;
+      }
+      
+      // Action-specific filters
+      if (action === 'CLEAR_COMPLETED' && !task.completed) return false;
+      if (action === 'CLEAR_PENDING' && task.status !== 'pending') return false;
+      
+      // Text search
+      if (criteria.textSearch) {
+        const searchTerm = criteria.textSearch.toLowerCase();
+        const titleMatch = task.title.toLowerCase().includes(searchTerm);
+        const descMatch = task.description?.toLowerCase().includes(searchTerm);
+        if (!titleMatch && !descMatch) return false;
+      }
+      
+      return true;
+    });
+  };
+
+  // Execute a previously stored pending agent action
+  const executePendingAction = async (pending: { action: string; criteria?: any; taskIds?: string[]; taskData?: any; humanSummary?: string; }) => {
+    const action = pending.action;
+    let matchingTasks: Task[] = [];
+    if (pending.taskIds && pending.taskIds.length > 0) {
+      matchingTasks = tasks.filter(t => pending.taskIds!.includes(t.id));
+    } else if (pending.criteria) {
+      matchingTasks = filterTasksByCriteria(tasks, pending.criteria, action);
+    }
+
+    if (matchingTasks.length === 0) {
+      setChatMessages(prev => ([...prev, { role: 'assistant', content: 'No matching tasks to act on.' }]));
+      return;
+    }
+
+    switch (action) {
+      case 'DELETE_MULTIPLE':
+      case 'CLEAR_COMPLETED':
+      case 'CLEAR_OVERDUE':
+      case 'CLEAR_PENDING':
+        try {
+          if (action === 'CLEAR_COMPLETED') {
+            await bulkTasksApi({ operation: 'clear-completed' });
+          } else if (action === 'CLEAR_OVERDUE') {
+            await bulkTasksApi({ operation: 'clear-overdue' });
+          } else if (action === 'CLEAR_PENDING') {
+            await bulkTasksApi({ operation: 'clear-pending' });
+          } else {
+            await bulkTasksApi({ operation: 'delete', taskIds: matchingTasks.map(t => t.id) });
+          }
+          // Refresh tasks from backend to get updated state
+          await refreshTasks();
+        } catch (e) {
+          console.error('Bulk delete-like op failed', e);
+        }
+        setChatMessages(prev => ([...prev, { role: 'assistant', content: `✅ Deleted ${matchingTasks.length} task(s).` }]));
+        toast({ title: 'Bulk Delete Complete 🗑️', description: `${matchingTasks.length} tasks removed.` });
+        break;
+      case 'COMPLETE_MULTIPLE':
+        try {
+          await bulkTasksApi({ operation: 'complete', taskIds: matchingTasks.map(t => t.id) });
+          await refreshTasks();
+        } catch (e) {
+          console.error('Bulk complete op failed', e);
+        }
+        setChatMessages(prev => ([...prev, { role: 'assistant', content: `✅ Completed ${matchingTasks.length} task(s).` }]));
+        toast({ title: 'Bulk Complete 🎉', description: `${matchingTasks.length} tasks marked as done.` });
+        break;
+      case 'STAR_MULTIPLE':
+        try {
+          await bulkTasksApi({ operation: 'star', taskIds: matchingTasks.map(t => t.id) });
+          await refreshTasks();
+        } catch (e) {
+          console.error('Bulk star op failed', e);
+        }
+        setChatMessages(prev => ([...prev, { role: 'assistant', content: `⭐ Starred ${matchingTasks.length} task(s).` }]));
+        toast({ title: 'Bulk Star ⭐', description: `${matchingTasks.length} tasks starred.` });
+        break;
+      case 'UPDATE_MULTIPLE':
+      case 'BULK_PRIORITY':
+      case 'RESCHEDULE_MULTIPLE':
+        try {
+          await bulkTasksApi({ operation: 'update', taskIds: matchingTasks.map(t => t.id), update: pending.taskData || {} });
+          // Refresh tasks from backend to get updated state
+          await refreshTasks();
+        } catch (e) {
+          console.error('Bulk update op failed', e);
+        }
+        setChatMessages(prev => ([...prev, { role: 'assistant', content: `🔄 Updated ${matchingTasks.length} task(s).` }]));
+        toast({ title: 'Bulk Update 🔄', description: `${matchingTasks.length} tasks updated.` });
+        break;
+      default:
+        setChatMessages(prev => ([...prev, { role: 'assistant', content: 'Stored action executed.' }]));
+    }
+  };
+
+  // Function to call AI model for Agent mode with task management context
+  const callAIModelForAgent = async (userQuery: string) => {
+    try {
+      // Get API key from localStorage
+      const apiKey = localStorage.getItem("aiApiKey");
+      
+      if (!apiKey) {
+        setChatMessages(prev => [
+          ...prev,
+          { 
+            role: 'assistant', 
+            content: "API key not found. Please set your API key in the settings menu under AI Integration." 
+          }
+        ]);
+        return;
+      }
+      
+      // Show loading message
+      setChatMessages(prev => [
+        ...prev,
+        { role: 'assistant', content: 'Analyzing your request...' }
+      ]);
+      
+      // Create enhanced prompt for task management
+      const taskManagementPrompt = `You are an advanced AI task management assistant with comprehensive capabilities. Analyze user requests and determine appropriate actions, including complex bulk operations.
+
+AVAILABLE ACTIONS:
+- CREATE_TASK: Create a new task
+- UPDATE_TASK: Modify an existing task  
+- DELETE_TASK: Remove a specific task
+- DELETE_MULTIPLE: Remove multiple tasks (by criteria/bulk)
+- COMPLETE_TASK: Mark a task as completed
+- COMPLETE_MULTIPLE: Mark multiple tasks as completed (by criteria/bulk)
+- STAR_TASK: Star/favorite a task
+- STAR_MULTIPLE: Star multiple tasks (by criteria/bulk)
+- UPDATE_MULTIPLE: Update multiple tasks (by criteria/bulk)
+- LIST_TASKS: Show current tasks (with optional filtering)
+- CLEAR_COMPLETED: Remove all completed tasks
+- CLEAR_OVERDUE: Remove all overdue tasks
+- CLEAR_PENDING: Remove all pending tasks
+- BULK_PRIORITY: Change priority for multiple tasks
+- RESCHEDULE_MULTIPLE: Change due dates for multiple tasks
+- ORGANIZE_TASKS: Reorganize/categorize tasks
+- ANALYTICS: Provide task statistics and insights
+- CLARIFY: Ask for more information when unclear
+
+CURRENT DATE: ${new Date().toISOString().split('T')[0]}
+
+CURRENT TASKS:
+${tasks.map(task => {
+  const isOverdue = new Date(task.dueDate) < new Date() && !task.completed;
+  return `- ID: ${task.id}, Title: "${task.title}", Status: ${task.status}, Priority: ${task.priority}, Due: ${task.dueDate}${task.dueTime ? ` at ${task.dueTime}` : ''}, Course: ${task.course}, Completed: ${task.completed}, Starred: ${task.starred}${isOverdue ? ' [OVERDUE]' : ''}`;
+}).join('\n')}
+
+USER REQUEST: "${userQuery}"
+
+ADVANCED INTELLIGENCE GUIDELINES:
+1. **Bulk Operations**: Understand requests like "clear all overdue tasks", "mark all math homework as done", "delete completed tasks"
+2. **Filtering & Criteria**: Parse conditions like "overdue", "high priority", "from math course", "completed", "starred"
+3. **Smart Date Understanding**: "overdue" = past due date, "this week" = next 7 days, "urgent" = high priority
+4. **Pattern Recognition**: Recognize bulk operation patterns and apply them intelligently
+5. **Context Awareness**: Consider task relationships, dependencies, and logical groupings
+6. **Confirmation for Destructive Actions**: For bulk deletions, provide clear confirmation
+7. **Statistics & Analytics**: Calculate and provide insights about task status, productivity, etc.
+8. **Advanced Scheduling**: Handle complex rescheduling like "move all tasks from this week to next week"
+9. **Smart Categorization**: Organize tasks by course, priority, due date, etc.
+10. **Natural Language Flexibility**: Handle various ways of expressing the same intent
+
+BULK OPERATION EXAMPLES:
+- "clear all overdue tasks" → DELETE_MULTIPLE (criteria: overdue)
+- "clear all pending tasks" → DELETE_MULTIPLE (criteria: status="pending")
+- "delete all pending tasks" → DELETE_MULTIPLE (criteria: status="pending")
+- "mark all completed tasks as deleted" → DELETE_MULTIPLE (criteria: completed)
+- "star all high priority tasks" → STAR_MULTIPLE (criteria: high priority)
+- "move all math homework to next week" → UPDATE_MULTIPLE (criteria: course=math, update: due date)
+- "change all low priority tasks to medium" → UPDATE_MULTIPLE (criteria: priority=low, update: priority=medium)
+- "complete all tasks due today" → COMPLETE_MULTIPLE (criteria: due today)
+- "complete all pending tasks" → COMPLETE_MULTIPLE (criteria: status="pending")
+- "show me overdue tasks" → LIST_TASKS (filter: overdue)
+- "show me pending tasks" → LIST_TASKS (filter: status="pending")
+- "how many tasks do I have?" → ANALYTICS (count statistics)
+
+RESPONSE FORMAT:
+{
+  "action": "ACTION_NAME",
+  "confidence": "high/medium/low",
+  "reasoning": "Detailed explanation of interpretation and chosen action",
+  "criteria": {
+    // For bulk operations: filtering criteria
+    "completed": true/false,
+    "status": "pending/completed/in-progress",
+    "overdue": true/false,
+    "priority": "high/medium/low",
+    "course": "course name",
+    "starred": true/false,
+    "dueDateBefore": "YYYY-MM-DD",
+    "dueDateAfter": "YYYY-MM-DD",
+    "titleContains": "search term",
+    "specificIds": ["id1", "id2"]
+  },
+  "taskData": {
+    // For single operations: MUST include taskId to identify the specific task
+    "taskId": "exact_task_id_from_list_above",
+    // For bulk operations: update data to apply to all matching tasks
+    "title": "new title",
+    "dueDate": "YYYY-MM-DD", 
+    "priority": "high/medium/low",
+    "course": "course name",
+    "completed": true/false,
+    "starred": true/false
+  },
+  "confirmationRequired": true/false, // For destructive bulk operations
+  "response": "Detailed, conversational response explaining the action"
+}
+
+SINGLE TASK OPERATION EXAMPLES:
+- "delete the math homework" → {"action": "DELETE_TASK", "taskData": {"taskId": "1234"}}
+- "mark typography paper as complete" → {"action": "COMPLETE_TASK", "taskData": {"taskId": "1234"}}
+- "star the design project" → {"action": "STAR_TASK", "taskData": {"taskId": "1234"}}
+- "update math task priority to high" → {"action": "UPDATE_TASK", "taskData": {"taskId": "1234", "priority": "high"}}
+
+IMPORTANT: For single task operations (UPDATE_TASK, DELETE_TASK, COMPLETE_TASK, STAR_TASK), you MUST identify the exact task by matching the user's description to the task titles/content in the current task list above, then provide the corresponding task ID in taskData.taskId.
+
+Be extremely intelligent about understanding user intent. Handle typos, informal language, and complex requests gracefully.`;
+
+      let aiResponse = "";
+      
+      if (selectedModel === "gemini-2.5-pro" || selectedModel === "gemini-2.5-flash") {
+        // Call Google Gemini API
+        aiResponse = await callGeminiAPI(taskManagementPrompt, apiKey);
+      } else if (selectedModel === "gpt-4") {
+        // Call OpenAI API
+        aiResponse = await callOpenAIAPI(taskManagementPrompt, apiKey);
+      } else if (selectedModel === "meta-llama/llama-4-maverick-17b-128e-instruct" || selectedModel === "meta-llama/llama-4-scout-17b-16e-instruct") {
+        // Call Groq API
+        aiResponse = await callGroqAPI(taskManagementPrompt, apiKey);
+      } else {
+        // Fallback for other models
+        aiResponse = `{"action": "CLARIFY", "confidence": "low", "reasoning": "Model not fully configured", "taskData": {"clarificationQuestion": "I'm sorry, but I need to be properly configured first. Please check your AI model settings."}, "response": "Please configure your AI model in settings to use the intelligent agent features."}`;
+      }
+      
+      // Parse AI response and execute the appropriate action
+      await handleAIAgentResponse(aiResponse, userQuery);
+      
+    } catch (error) {
+      console.error("AI Agent call error:", error);
+      
+      // Update with error message (remove loading message)
+      setChatMessages(prev => {
+        const newMessages = [...prev];
+        newMessages.pop(); // Remove loading message
+        newMessages.push({ 
+          role: 'assistant', 
+          content: "Sorry, I encountered an error while processing your request. Please try again or rephrase your request." 
+        });
+        return newMessages;
+      });
+    }
+  };
+
+  // Function to handle AI agent response and execute actions
+  const handleAIAgentResponse = async (aiResponse: string, originalQuery: string) => {
+    try {
+      // Remove loading message first
+      setChatMessages(prev => {
+        const newMessages = [...prev];
+        newMessages.pop(); // Remove loading message
+        return newMessages;
+      });
+
+      // Try to parse JSON response from AI
+      let parsedResponse;
+      try {
+        // Extract JSON from response if it's wrapped in other text
+        const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+        const jsonStr = jsonMatch ? jsonMatch[0] : aiResponse;
+        parsedResponse = JSON.parse(jsonStr);
+        
+        // Validate required fields
+        if (!parsedResponse.action || !parsedResponse.response) {
+          throw new Error("Invalid response format - missing required fields");
+        }
+        
+      } catch (parseError) {
+        console.error("Failed to parse AI response:", parseError);
+        console.log("Raw AI response:", aiResponse);
+        setChatMessages(prev => [
+          ...prev,
+          { 
+            role: 'assistant', 
+            content: "I understand you want to manage tasks, but I had trouble processing your request. Let me try to help you anyway! Could you please be more specific? For example:\n\n• **Create**: 'Create task: Study for exam tomorrow at 2pm'\n• **Complete**: 'Mark done: Typography Research Paper'\n• **Delete**: 'Remove task: Assignment 1'\n• **Update**: 'Change deadline for math homework to Friday'\n• **List**: 'Show me my tasks'" 
+          }
+        ]);
+        return;
+      }
+
+      const { action, taskData, response } = parsedResponse;
+
+      // Debug logging
+      console.log("AI Response:", { action, taskData, response });
+
+      // Show the AI's response to the user
+      setChatMessages(prev => [
+        ...prev,
+        { role: 'assistant', content: response }
+      ]);
+
+      // Execute the determined action
+      switch (action) {
+        case 'CREATE_TASK':
+          if (taskData && taskData.title) {
+            // Smart defaults for task creation
+            const today = new Date();
+            const tomorrow = new Date(today);
+            tomorrow.setDate(today.getDate() + 1);
+            
+            const newTask = {
+              title: taskData.title,
+              description: taskData.description || '',
+              dueDate: taskData.dueDate || today.toISOString().split('T')[0],
+              dueTime: taskData.dueTime || undefined,
+              priority: (taskData.priority as "low" | "medium" | "high") || 'medium',
+              status: 'pending' as const,
+              course: taskData.course || 'General',
+              tags: taskData.tags || [],
+              completed: false,
+              starred: false
+            };
+            
+            // Use context method which calls API internally
+            await addTask(newTask);
+            
+            setTimeout(() => {
+              const dueDateStr = newTask.dueDate === today.toISOString().split('T')[0] 
+                ? 'today' 
+                : newTask.dueDate === tomorrow.toISOString().split('T')[0] 
+                ? 'tomorrow' 
+                : newTask.dueDate;
+              
+              const timeStr = newTask.dueTime ? ` at ${newTask.dueTime}` : '';
+              const priorityEmoji = newTask.priority === 'high' ? '🔥' : newTask.priority === 'low' ? '📝' : '⭐';
+              
+              setChatMessages(prev => [
+                ...prev,
+                { 
+                  role: 'assistant', 
+                  content: `✅ Task created successfully!\n\n${priorityEmoji} **${newTask.title}**\n📅 Due: ${dueDateStr}${timeStr}\n📚 Course: ${newTask.course}\n🏷️ Priority: ${newTask.priority}` 
+                }
+              ]);
+              toast({
+                title: "Task Created! 🎉",
+                description: `"${newTask.title}" has been added to your tasks.`
+              });
+            }, 500);
+          } else {
+            setChatMessages(prev => [
+              ...prev,
+              { role: 'assistant', content: "❌ I couldn't create the task because no title was provided. Please try again with a task title." }
+            ]);
+          }
+          break;
+
+        case 'UPDATE_TASK':
+          if (taskData) {
+            let targetTaskId = taskData.taskId;
+            
+            // If no taskId provided, try to find task by other criteria
+            if (!targetTaskId && taskData.title) {
+              const foundTask = tasks.find(t => 
+                t.title.toLowerCase().includes(taskData.title.toLowerCase()) ||
+                taskData.title.toLowerCase().includes(t.title.toLowerCase())
+              );
+              targetTaskId = foundTask?.id;
+            }
+            
+            if (targetTaskId) {
+              // Use context method which calls API internally
+              await updateTask(targetTaskId, taskData);
+              const updatedTask = tasks.find(t => t.id === targetTaskId);
+              setTimeout(() => {
+                setChatMessages(prev => [
+                  ...prev,
+                  { role: 'assistant', content: `✅ Task "${updatedTask?.title}" updated successfully!` }
+                ]);
+                toast({
+                  title: "Task Updated! 🎉",
+                  description: `"${updatedTask?.title}" has been updated.`
+                });
+              }, 500);
+            }
+          }
+          break;
+
+        case 'DELETE_TASK':
+          if (taskData) {
+            let targetTaskId = taskData.taskId;
+            
+            // If no taskId provided, try to find task by other criteria
+            if (!targetTaskId && taskData.title) {
+              const foundTask = tasks.find(t => 
+                t.title.toLowerCase().includes(taskData.title.toLowerCase()) ||
+                taskData.title.toLowerCase().includes(t.title.toLowerCase())
+              );
+              targetTaskId = foundTask?.id;
+            }
+            
+            if (targetTaskId) {
+              const taskToDelete = tasks.find(t => t.id === targetTaskId);
+              // Use context method which calls API internally
+              await deleteTask(targetTaskId);
+              setTimeout(() => {
+                setChatMessages(prev => [
+                  ...prev,
+                  { role: 'assistant', content: `✅ Task "${taskToDelete?.title}" deleted successfully!` }
+                ]);
+                toast({
+                  title: "Task Deleted! 🗑️",
+                  description: `"${taskToDelete?.title}" has been removed.`
+                });
+              }, 500);
+            }
+          }
+          break;
+
+        case 'DELETE_MULTIPLE':
+        case 'CLEAR_COMPLETED':
+        case 'CLEAR_OVERDUE':
+        case 'CLEAR_PENDING':
+          {
+            const { criteria } = parsedResponse;
+            const matchingTasks = filterTasksByCriteria(tasks, criteria, action);
+            
+            if (matchingTasks.length === 0) {
+              setChatMessages(prev => [
+                ...prev,
+                { role: 'assistant', content: "📝 No tasks found matching your criteria." }
+              ]);
+              break;
+            }
+
+            if (parsedResponse.confirmationRequired) {
+              setChatMessages(prev => [
+                ...prev,
+                { 
+                  role: 'assistant', 
+                  content: `⚠️ **Confirmation Required**\n\nI found ${matchingTasks.length} task(s) matching your criteria:\n\n${matchingTasks.map(t => `• ${t.title}`).join('\n')}\n\nReply with "yes" or "confirm" to proceed with deletion, or "no" to cancel.` 
+                }
+              ]);
+              // Store pending action for confirmation
+              setPendingAgentAction({
+                action,
+                criteria,
+                taskIds: matchingTasks.map(t => t.id),
+                humanSummary: `${action} on ${matchingTasks.length} tasks`
+              });
+            } else {
+              // Proceed with bulk deletion
+              try {
+                await bulkTasksApi({ operation: 'delete', taskIds: matchingTasks.map(t => t.id) });
+                // Refresh tasks from backend to get updated state
+                await refreshTasks();
+              } catch (e) {
+                console.error('Bulk delete API failed', e);
+              }
+              
+              setTimeout(() => {
+                setChatMessages(prev => [
+                  ...prev,
+                  { role: 'assistant', content: `✅ Successfully deleted ${matchingTasks.length} task(s)!` }
+                ]);
+                toast({
+                  title: "Bulk Delete Complete! 🗑️",
+                  description: `${matchingTasks.length} tasks have been removed.`
+                });
+              }, 500);
+            }
+          }
+          break;
+
+        case 'COMPLETE_TASK':
+          if (taskData) {
+            let targetTaskId = taskData.taskId;
+            
+            // If no taskId provided, try to find task by other criteria
+            if (!targetTaskId && taskData.title) {
+              const foundTask = tasks.find(t => 
+                t.title.toLowerCase().includes(taskData.title.toLowerCase()) ||
+                taskData.title.toLowerCase().includes(t.title.toLowerCase())
+              );
+              targetTaskId = foundTask?.id;
+            }
+            
+            if (targetTaskId) {
+              await toggleCompleted(targetTaskId);
+              const completedTask = tasks.find(t => t.id === targetTaskId);
+              setTimeout(() => {
+                setChatMessages(prev => [
+                  ...prev,
+                  { role: 'assistant', content: `✅ Task "${completedTask?.title}" marked as completed!` }
+                ]);
+                toast({
+                  title: "Task Completed! 🎉",
+                  description: `"${completedTask?.title}" has been completed.`
+                });
+              }, 500);
+            }
+          }
+          break;
+
+        case 'COMPLETE_MULTIPLE':
+          {
+            const { criteria } = parsedResponse;
+            const matchingTasks = filterTasksByCriteria(tasks, criteria, action);
+            
+            if (matchingTasks.length === 0) {
+              setChatMessages(prev => [
+                ...prev,
+                { role: 'assistant', content: "📝 No tasks found matching your criteria." }
+              ]);
+              break;
+            }
+
+            try {
+              await bulkTasksApi({ operation: 'complete', taskIds: matchingTasks.map(t => t.id) });
+              // Refresh tasks from backend to get updated state
+              await refreshTasks();
+            } catch (e) {
+              console.error('Bulk complete API failed', e);
+            }
+            
+            setTimeout(() => {
+              setChatMessages(prev => [
+                ...prev,
+                { role: 'assistant', content: `✅ Successfully completed ${matchingTasks.length} task(s)!` }
+              ]);
+              toast({
+                title: "Bulk Complete! 🎉",
+                description: `${matchingTasks.length} tasks marked as completed.`
+              });
+            }, 500);
+          }
+          break;
+
+        case 'STAR_TASK':
+          if (taskData) {
+            let targetTaskId = taskData.taskId;
+            
+            // If no taskId provided, try to find task by other criteria
+            if (!targetTaskId && taskData.title) {
+              const foundTask = tasks.find(t => 
+                t.title.toLowerCase().includes(taskData.title.toLowerCase()) ||
+                taskData.title.toLowerCase().includes(t.title.toLowerCase())
+              );
+              targetTaskId = foundTask?.id;
+            }
+            
+            if (targetTaskId) {
+              await toggleStarred(targetTaskId);
+              const starredTask = tasks.find(t => t.id === targetTaskId);
+              setTimeout(() => {
+                setChatMessages(prev => [
+                  ...prev,
+                  { role: 'assistant', content: `⭐ Task "${starredTask?.title}" starred!` }
+                ]);
+                toast({
+                  title: "Task Starred! ⭐",
+                  description: `"${starredTask?.title}" has been starred.`
+                });
+              }, 500);
+            }
+          }
+          break;
+
+        case 'STAR_MULTIPLE':
+          {
+            const { criteria } = parsedResponse;
+            const matchingTasks = filterTasksByCriteria(tasks, criteria, action);
+            
+            if (matchingTasks.length === 0) {
+              setChatMessages(prev => [
+                ...prev,
+                { role: 'assistant', content: "📝 No tasks found matching your criteria." }
+              ]);
+              break;
+            }
+
+            try {
+              await bulkTasksApi({ operation: 'star', taskIds: matchingTasks.map(t => t.id) });
+              // Refresh tasks from backend to get updated state
+              await refreshTasks();
+            } catch (e) {
+              console.error('Bulk star API failed', e);
+            }
+            
+            setTimeout(() => {
+              setChatMessages(prev => [
+                ...prev,
+                { role: 'assistant', content: `⭐ Successfully starred ${matchingTasks.length} task(s)!` }
+              ]);
+              toast({
+                title: "Bulk Star! ⭐",
+                description: `${matchingTasks.length} tasks have been starred.`
+              });
+            }, 500);
+          }
+          break;
+
+        case 'UPDATE_MULTIPLE':
+        case 'BULK_PRIORITY':
+        case 'RESCHEDULE_MULTIPLE':
+          {
+            const { criteria } = parsedResponse;
+            const matchingTasks = filterTasksByCriteria(tasks, criteria, action);
+            
+            if (matchingTasks.length === 0) {
+              setChatMessages(prev => [
+                ...prev,
+                { role: 'assistant', content: "📝 No tasks found matching your criteria." }
+              ]);
+              break;
+            }
+
+            try {
+              await bulkTasksApi({ operation: 'update', taskIds: matchingTasks.map(t => t.id), update: taskData });
+              // Refresh tasks from backend to get updated state
+              await refreshTasks();
+            } catch (e) {
+              console.error('Bulk update API failed', e);
+            }
+            
+            setTimeout(() => {
+              setChatMessages(prev => [
+                ...prev,
+                { role: 'assistant', content: `✅ Successfully updated ${matchingTasks.length} task(s)!` }
+              ]);
+              toast({
+                title: "Bulk Update! 🔄",
+                description: `${matchingTasks.length} tasks have been updated.`
+              });
+            }, 500);
+          }
+          break;
+
+        case 'LIST_TASKS':
+          {
+            const { criteria } = parsedResponse;
+            let filteredTasks: Task[] = tasks;
+            try {
+              if (criteria) {
+                filteredTasks = await listTasksApi(criteria as any);
+              } else {
+                filteredTasks = await listTasksApi();
+              }
+            } catch (e) {
+              console.error('List tasks API failed, falling back to local', e);
+              if (criteria) filteredTasks = filterTasksByCriteria(tasks, criteria, action);
+            }
+            
+            const tasksList = filteredTasks.length > 0 
+              ? filteredTasks.map(task => {
+                  const isOverdue = new Date(task.dueDate) < new Date() && !task.completed;
+                  const statusEmoji = task.completed ? '✅' : task.starred ? '⭐' : isOverdue ? '⚠️' : '📝';
+                  const priorityText = task.priority === 'high' ? '🔥' : task.priority === 'low' ? '📝' : '⭐';
+                  return `${statusEmoji} **${task.title}** (${priorityText} ${task.priority}, due ${task.dueDate})`;
+                }).join('\n')
+              : "No tasks found matching your criteria.";
+            
+            setTimeout(() => {
+              setChatMessages(prev => [
+                ...prev,
+                { role: 'assistant', content: `📋 **Your Tasks:**\n\n${tasksList}` }
+              ]);
+            }, 500);
+          }
+          break;
+
+        case 'ANALYTICS':
+          {
+            let totalTasks = tasks.length, completedTasks = 0, overdueTasks = 0, highPriorityTasks = 0, starredTasks = 0, completionRate = 0;
+            try {
+              const stats = await analyticsApi();
+              totalTasks = stats.total;
+              completedTasks = stats.completed;
+              overdueTasks = stats.overdue;
+              highPriorityTasks = stats.highPriorityOpen;
+              completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+              starredTasks = tasks.filter(t => t.starred).length; // backend doesn’t compute starred count; keep local UI estimate
+            } catch (e) {
+              console.error('Analytics API failed, using local calculation', e);
+              const today = new Date();
+              completedTasks = tasks.filter(t => t.completed).length;
+              overdueTasks = tasks.filter(t => new Date(t.dueDate) < today && !t.completed).length;
+              highPriorityTasks = tasks.filter(t => t.priority === 'high' && !t.completed).length;
+              starredTasks = tasks.filter(t => t.starred).length;
+              completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+            }
+            
+            setTimeout(() => {
+              setChatMessages(prev => [
+                ...prev,
+                { 
+                  role: 'assistant', 
+                  content: `� **Task Analytics**\n\n📝 Total Tasks: ${totalTasks}\n✅ Completed: ${completedTasks} (${completionRate}%)\n⚠️ Overdue: ${overdueTasks}\n🔥 High Priority: ${highPriorityTasks}\n⭐ Starred: ${starredTasks}\n\n${overdueTasks > 0 ? '⚠️ You have overdue tasks that need attention!' : '🎉 No overdue tasks!'}` 
+                }
+              ]);
+            }, 500);
+          }
+          break;
+
+        case 'ORGANIZE_TASKS':
+          {
+            const courseGroups = tasks.reduce((groups, task) => {
+              const course = task.course || 'General';
+              if (!groups[course]) groups[course] = [];
+              groups[course].push(task);
+              return groups;
+            }, {} as Record<string, typeof tasks>);
+            
+            const organizedList = Object.entries(courseGroups).map(([course, courseTasks]) => {
+              const taskList = courseTasks.map(t => `  • ${t.title} (${t.priority})`).join('\n');
+              return `**${course}** (${courseTasks.length} tasks)\n${taskList}`;
+            }).join('\n\n');
+            
+            setTimeout(() => {
+              setChatMessages(prev => [
+                ...prev,
+                { role: 'assistant', content: `🗂️ **Organized Tasks by Course:**\n\n${organizedList}` }
+              ]);
+            }, 500);
+          }
+          break;
+
+        case 'CLARIFY':
+          // Store clarification context to handle next user reply as continuation
+          setClarificationContext({ originalQuery: originalQuery, question: parsedResponse?.taskData?.clarificationQuestion });
+          break;
+
+        default:
+          setChatMessages(prev => [
+            ...prev,
+            { role: 'assistant', content: "I'm not sure how to help with that. Could you please be more specific about what task management action you'd like to perform?" }
+          ]);
+      }
+
+    } catch (error) {
+      console.error("Error handling AI agent response:", error);
+      
+      // Fallback: try simple rule-based understanding as last resort
+      const simpleFallback = trySimpleTaskParsing(originalQuery);
+      if (simpleFallback) {
+        setChatMessages(prev => [
+          ...prev,
+          { role: 'assistant', content: simpleFallback.response }
+        ]);
+        
+        // Execute the simple action
+        if (simpleFallback.action === 'CREATE_TASK' && simpleFallback.taskData?.title) {
+          const newTask = {
+            title: simpleFallback.taskData.title,
+            description: '',
+            dueDate: new Date().toISOString().split('T')[0],
+            dueTime: undefined,
+            priority: 'medium' as const,
+            status: 'pending' as const,
+            course: 'General',
+            tags: [],
+            completed: false,
+            starred: false
+          };
+          addTask(newTask);
+          
+          setTimeout(() => {
+            toast({
+              title: "Task Created! 🎉",
+              description: `"${newTask.title}" has been added using fallback parsing.`
+            });
+          }, 500);
+        }
+      } else {
+        setChatMessages(prev => [
+          ...prev,
+          { 
+            role: 'assistant', 
+            content: "I encountered an error while processing your request. Please try again with a clearer task management request, such as:\n\n• 'Create task: [task name]'\n• 'Complete: [task name]'\n• 'Delete: [task name]'\n• 'Show my tasks'" 
+          }
+        ]);
+      }
+    }
+  };
+
+  // Simple fallback parsing for when AI completely fails
+  const trySimpleTaskParsing = (query: string): { action: string, taskData?: any, response: string } | null => {
+    const lowerQuery = query.toLowerCase();
+    
+    // Simple task creation
+    if (lowerQuery.includes('create') && (lowerQuery.includes('task') || lowerQuery.includes('todo'))) {
+      const titleMatch = query.match(/create.*?(?:task|todo)[\s:]*(.+)/i);
+      if (titleMatch && titleMatch[1]) {
+        return {
+          action: 'CREATE_TASK',
+          taskData: { title: titleMatch[1].trim() },
+          response: `Creating task "${titleMatch[1].trim()}" using fallback parsing...`
+        };
+      }
+    }
+    
+    // Simple task listing
+    if (lowerQuery.includes('show') || lowerQuery.includes('list')) {
+      const tasksList = tasks.length > 0 
+        ? tasks.map(task => `• ${task.title} (${task.priority} priority)`).join('\n')
+        : "You don't have any tasks yet.";
+      return {
+        action: 'LIST_TASKS',
+        response: `📋 **Your Tasks:**\n\n${tasksList}`
+      };
+    }
+    
+    return null;
+  };
 
   // Function to call AI model based on selected model and API key
   const callAIModel = async (userQuery: string) => {

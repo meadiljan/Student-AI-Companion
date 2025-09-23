@@ -1,6 +1,7 @@
 "use client";
 
-import React, { createContext, useContext, useState, ReactNode } from "react";
+import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
+import { listTasks as listTasksApi, createTask as createTaskApi, updateTaskApi, deleteTaskApi } from "@/services/agentApi";
 
 export interface Task {
   id: string;
@@ -18,11 +19,12 @@ export interface Task {
 
 interface TasksContextType {
   tasks: Task[];
-  addTask: (task: Omit<Task, "id">) => void;
-  updateTask: (id: string, updates: Partial<Task>) => void;
-  deleteTask: (id: string) => void;
-  toggleCompleted: (id: string) => void;
-  toggleStarred: (id: string) => void;
+  addTask: (task: Omit<Task, "id"> & { id?: string }) => Promise<void>;
+  updateTask: (id: string, updates: Partial<Task>) => Promise<void>;
+  deleteTask: (id: string) => Promise<void>;
+  toggleCompleted: (id: string) => Promise<void>;
+  toggleStarred: (id: string) => Promise<void>;
+  refreshTasks: () => Promise<void>;
 }
 
 const TasksContext = createContext<TasksContextType | undefined>(undefined);
@@ -96,50 +98,89 @@ const initialTasks: Task[] = [
 ];
 
 export const TasksProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [tasks, setTasks] = useState<Task[]>(initialTasks);
+  const [tasks, setTasks] = useState<Task[]>([]);
 
-  const addTask = (taskData: Omit<Task, "id">) => {
-    const newTask: Task = {
-      ...taskData,
-      id: Date.now().toString(),
-    };
-    setTasks(prev => [...prev, newTask]);
+  // Hydrate from backend; seed with initialTasks if empty
+  useEffect(() => {
+    (async () => {
+      try {
+        let serverTasks = await listTasksApi();
+        if (serverTasks.length === 0) {
+          for (const t of initialTasks) {
+            // create without id so server assigns; include fields
+            const { id, ...payload } = t;
+            await createTaskApi(payload as Omit<Task, 'id'>);
+          }
+          serverTasks = await listTasksApi();
+        }
+        setTasks(serverTasks);
+      } catch (e) {
+        // Fallback to local initial tasks if server not available
+        console.error("Failed to hydrate tasks from backend; using local seed", e);
+        setTasks(initialTasks);
+      }
+    })();
+  }, []);
+
+  const addTask = async (taskData: Omit<Task, "id"> & { id?: string }) => {
+    try {
+      const { id: _ignore, ...payload } = taskData as any;
+      const created = await createTaskApi(payload as Omit<Task, 'id'>);
+      setTasks(prev => [...prev, created]);
+    } catch (e) {
+      console.error("Create task API failed", e);
+    }
   };
 
-  const updateTask = (id: string, updates: Partial<Task>) => {
-    setTasks(prev =>
-      prev.map(task =>
-        task.id === id ? { ...task, ...updates } : task
-      )
-    );
+  const updateTask = async (id: string, updates: Partial<Task>) => {
+    try {
+      const updated = await updateTaskApi(id, updates);
+      setTasks(prev => prev.map(task => task.id === id ? updated : task));
+    } catch (e) {
+      console.error("Update task API failed", e);
+    }
   };
 
-  const deleteTask = (id: string) => {
-    setTasks(prev => prev.filter(task => task.id !== id));
+  const deleteTask = async (id: string) => {
+    try {
+      await deleteTaskApi(id);
+      setTasks(prev => prev.filter(task => task.id !== id));
+    } catch (e) {
+      console.error("Delete task API failed", e);
+    }
   };
 
-  const toggleCompleted = (id: string) => {
-    setTasks(prev =>
-      prev.map(task =>
-        task.id === id
-          ? {
-              ...task,
-              completed: !task.completed,
-              status: !task.completed ? "completed" : "pending"
-            }
-          : task
-      )
-    );
+  const toggleCompleted = async (id: string) => {
+    try {
+      const current = tasks.find(t => t.id === id);
+      if (!current) return;
+      const nextCompleted = !current.completed;
+      const nextStatus: Task['status'] = nextCompleted ? 'completed' : 'pending';
+      const updated = await updateTaskApi(id, { completed: nextCompleted, status: nextStatus });
+      setTasks(prev => prev.map(task => task.id === id ? updated : task));
+    } catch (e) {
+      console.error("Toggle complete API failed", e);
+    }
   };
 
-  const toggleStarred = (id: string) => {
-    setTasks(prev =>
-      prev.map(task =>
-        task.id === id
-          ? { ...task, starred: !task.starred }
-          : task
-      )
-    );
+  const toggleStarred = async (id: string) => {
+    try {
+      const current = tasks.find(t => t.id === id);
+      if (!current) return;
+      const updated = await updateTaskApi(id, { starred: !current.starred });
+      setTasks(prev => prev.map(task => task.id === id ? updated : task));
+    } catch (e) {
+      console.error("Toggle star API failed", e);
+    }
+  };
+
+  const refreshTasks = async () => {
+    try {
+      const serverTasks = await listTasksApi();
+      setTasks(serverTasks);
+    } catch (e) {
+      console.error("Refresh tasks API failed", e);
+    }
   };
 
   return (
@@ -151,6 +192,7 @@ export const TasksProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         deleteTask,
         toggleCompleted,
         toggleStarred,
+        refreshTasks,
       }}
     >
       {children}

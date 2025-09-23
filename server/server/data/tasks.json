@@ -1,0 +1,36 @@
+{
+  "tasks": [
+    {
+      "id": "1758630482379",
+      "title": "Drawing Portfolio",
+      "description": "Complete 10 digital illustrations for portfolio submission",
+      "dueDate": "2025-09-23",
+      "dueTime": "11:59 PM",
+      "priority": "high",
+      "status": "pending",
+      "course": "Digital Art",
+      "tags": [
+        "portfolio",
+        "illustration"
+      ],
+      "completed": false,
+      "starred": false
+    },
+    {
+      "id": "1758630482401",
+      "title": "Math Problem Set",
+      "description": "Complete calculus problems 1-20",
+      "dueDate": "2025-09-20",
+      "dueTime": "9:00 AM",
+      "priority": "low",
+      "status": "pending",
+      "course": "Mathematics",
+      "tags": [
+        "math",
+        "calculus"
+      ],
+      "completed": true,
+      "starred": false
+    }
+  ]
+}
