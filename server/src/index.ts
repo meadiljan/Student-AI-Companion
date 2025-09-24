@@ -121,7 +121,7 @@ const bulkSchema = z.object({
   criteria: listQuerySchema.partial().optional(),
   taskIds: z.array(z.string()).optional(),
   update: taskUpdateSchema.optional(),
-  operation: z.enum(['delete','complete','star','update','clear-completed','clear-overdue'])
+  operation: z.enum(['delete','complete','star','update','clear-completed','clear-overdue','clear-pending'])
 });
 
 app.post('/tasks/bulk', (req: Request, res: Response) => {

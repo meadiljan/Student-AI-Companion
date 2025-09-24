@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { listTasks as listTasksApi, createTask as createTaskApi, updateTaskApi, deleteTaskApi } from "@/services/agentApi";
+import { generateTaskDescription } from "@/services/aiDescriptionService";
 
 export interface Task {
   id: string;
@@ -125,6 +126,14 @@ export const TasksProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const addTask = async (taskData: Omit<Task, "id"> & { id?: string }) => {
     try {
       const { id: _ignore, ...payload } = taskData as any;
+      
+      // Auto-generate description if not provided or empty
+      if (!payload.description || payload.description.trim() === '') {
+        console.log('Generating AI description for task:', payload.title);
+        payload.description = await generateTaskDescription(payload.title);
+        console.log('Generated description:', payload.description);
+      }
+      
       const created = await createTaskApi(payload as Omit<Task, 'id'>);
       setTasks(prev => [...prev, created]);
     } catch (e) {

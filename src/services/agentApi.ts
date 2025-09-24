@@ -53,7 +53,7 @@ export async function deleteTaskApi(id: string): Promise<void> {
   if (!res.ok && res.status !== 204) throw new Error('Failed to delete task');
 }
 
-export type BulkOperation = 'delete' | 'complete' | 'star' | 'update' | 'clear-completed' | 'clear-overdue';
+export type BulkOperation = 'delete' | 'complete' | 'star' | 'update' | 'clear-completed' | 'clear-overdue' | 'clear-pending';
 
 export async function bulkTasks(params: {
   operation: BulkOperation;

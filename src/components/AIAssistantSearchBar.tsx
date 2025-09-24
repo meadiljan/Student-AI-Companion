@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Task } from "@/contexts/TasksContext";
 import { bulkTasks as bulkTasksApi, listTasks as listTasksApi, analytics as analyticsApi } from "@/services/agentApi";
 import { useTasks } from "@/contexts/TasksContext";
+import { conversationMemory } from "@/services/conversationMemory";
 
 interface CalendarEvent {
   id: number;
@@ -621,6 +622,23 @@ export default function AIAssistantSearchBar(props: AIAssistantSearchBarProps = 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showCommandMenu, activeCommand, chatMessages]);
+  
+  // Restore conversation history on component mount
+  useEffect(() => {
+    const restoreConversation = () => {
+      const history = conversationMemory.getCurrentConversationHistory();
+      if (history.length > 0) {
+        const chatHistory = history.map(msg => ({
+          role: msg.role,
+          content: msg.content
+        }));
+        setChatMessages(chatHistory);
+        console.log(`Restored conversation with ${history.length} messages`);
+      }
+    };
+    
+    restoreConversation();
+  }, []); // Run only once on mount
 
   // Focus input when expanded
   useEffect(() => {
@@ -1080,16 +1098,28 @@ export default function AIAssistantSearchBar(props: AIAssistantSearchBarProps = 
         return;
       }
       
+      // Add conversation context for Agent mode personalization
+      const conversationContext = conversationMemory.getConversationContext(8);
+      const sessionSummary = conversationMemory.getSessionSummary();
+      
+      // Save user message to conversation memory
+      conversationMemory.addMessage('user', userQuery, 'agent');
+      
       // Show loading message
       setChatMessages(prev => [
         ...prev,
         { role: 'assistant', content: 'Analyzing your request...' }
       ]);
       
-      // Create enhanced prompt for task management
-      const taskManagementPrompt = `You are an advanced AI task management assistant with comprehensive capabilities. Analyze user requests and determine appropriate actions, including complex bulk operations.
+      // Create enhanced prompt for task management with conversation context
+      const taskManagementPrompt = `You are an advanced AI task management assistant with comprehensive capabilities and conversation memory. Analyze user requests and determine appropriate actions, including complex bulk operations.
 
-AVAILABLE ACTIONS:
+${conversationContext ? `CONVERSATION CONTEXT:
+${conversationContext}
+Session Info: This conversation has ${sessionSummary.messageCount} messages covering topics: ${sessionSummary.topics.join(', ')}.
+Consider previous interactions and provide personalized, context-aware responses. Reference previous tasks, preferences, and conversation patterns when relevant.
+
+` : ''}AVAILABLE ACTIONS:
 - CREATE_TASK: Create a new task
 - UPDATE_TASK: Modify an existing task  
 - DELETE_TASK: Remove a specific task
@@ -1264,6 +1294,9 @@ Be extremely intelligent about understanding user intent. Handle typos, informal
       // Debug logging
       console.log("AI Response:", { action, taskData, response });
 
+      // Save assistant response to conversation memory
+      conversationMemory.addMessage('assistant', response, 'agent');
+
       // Show the AI's response to the user
       setChatMessages(prev => [
         ...prev,
@@ -1281,7 +1314,7 @@ Be extremely intelligent about understanding user intent. Handle typos, informal
             
             const newTask = {
               title: taskData.title,
-              description: taskData.description || '',
+              description: taskData.description || undefined, // Let TasksContext auto-generate if undefined
               dueDate: taskData.dueDate || today.toISOString().split('T')[0],
               dueTime: taskData.dueTime || undefined,
               priority: (taskData.priority as "low" | "medium" | "high") || 'medium',
@@ -1800,6 +1833,21 @@ Be extremely intelligent about understanding user intent. Handle typos, informal
         return;
       }
       
+      // Add conversation context for personalized responses
+      const conversationContext = conversationMemory.getConversationContext(8);
+      const sessionSummary = conversationMemory.getSessionSummary();
+      
+      let contextualQuery = userQuery;
+      if (conversationContext && conversationMemory.hasConversationContext()) {
+        contextualQuery = `${conversationContext}Current question: ${userQuery}
+        
+Session Info: This conversation has ${sessionSummary.messageCount} messages covering topics: ${sessionSummary.topics.join(', ')}. 
+Please provide a personalized response that considers our conversation history and maintains context continuity.`;
+      }
+      
+      // Save user message to conversation memory
+      conversationMemory.addMessage('user', userQuery, 'ask');
+      
       // Show loading message
       setChatMessages(prev => [
         ...prev,
@@ -1809,18 +1857,21 @@ Be extremely intelligent about understanding user intent. Handle typos, informal
       let aiResponse = "";
       
       if (selectedModel === "gemini-2.5-pro" || selectedModel === "gemini-2.5-flash") {
-        // Call Google Gemini API
-        aiResponse = await callGeminiAPI(userQuery, apiKey);
+        // Call Google Gemini API with contextual query
+        aiResponse = await callGeminiAPI(contextualQuery, apiKey);
       } else if (selectedModel === "gpt-4") {
-        // Call OpenAI API
-        aiResponse = await callOpenAIAPI(userQuery, apiKey);
+        // Call OpenAI API with contextual query
+        aiResponse = await callOpenAIAPI(contextualQuery, apiKey);
       } else if (selectedModel === "meta-llama/llama-4-maverick-17b-128e-instruct" || selectedModel === "meta-llama/llama-4-scout-17b-16e-instruct") {
-        // Call Groq API
-        aiResponse = await callGroqAPI(userQuery, apiKey);
+        // Call Groq API with contextual query
+        aiResponse = await callGroqAPI(contextualQuery, apiKey);
       } else {
         // Fallback for other models
         aiResponse = `I'm using the ${selectedModel} model. Your question was: "${userQuery}". In a full implementation, this would connect to the appropriate AI service.`;
       }
+      
+      // Save assistant response to conversation memory
+      conversationMemory.addMessage('assistant', aiResponse, 'ask');
       
       // Update with actual response (remove loading message)
       setChatMessages(prev => {
@@ -2046,16 +2097,43 @@ Be extremely intelligent about understanding user intent. Handle typos, informal
                       >
                         {activeCommand === 'create' ? 'Agent' : commands.find(cmd => cmd.id === activeCommand)?.label}
                       </span>
+                      {/* Conversation Memory Indicator */}
+                      {conversationMemory.hasConversationContext() && (
+                        <span 
+                          className="ml-2 text-xs text-gray-500 bg-gray-100 rounded-full px-2 py-1"
+                          title={`Conversation has ${conversationMemory.getSessionSummary().messageCount} messages`}
+                        >
+                          Memory: {conversationMemory.getSessionSummary().messageCount}
+                        </span>
+                      )}
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="rounded-full h-6 w-6 p-0 hover:bg-gray-100/50"
-                      onClick={resetChatMode}
-                      disabled={isCreatingTask} // Disable close button during task creation
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      {/* New Conversation Button */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="rounded-full h-6 w-6 p-0 hover:bg-gray-100/50"
+                        onClick={() => {
+                          conversationMemory.clearCurrentSession();
+                          setChatMessages([]);
+                          console.log('Started new conversation session');
+                        }}
+                        title="New Conversation"
+                        disabled={isCreatingTask}
+                      >
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                      {/* Close Button */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="rounded-full h-6 w-6 p-0 hover:bg-gray-100/50"
+                        onClick={resetChatMode}
+                        disabled={isCreatingTask} // Disable close button during task creation
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                   
                   {/* Chat Messages */}
