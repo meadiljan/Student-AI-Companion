@@ -1218,77 +1218,75 @@ const Calendar = forwardRef<CalendarRef, CalendarProps>(({ onEventsChange }, ref
   };
 
   return (
-    <div className="w-full rounded-3xl shadow-xl">
-      <div className="p-8">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
-            <Button 
-              variant="outline" 
-              onClick={() => navigateMonth("prev")}
-              className="rounded-2xl"
+    <div className="flex h-full flex-col p-6">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-4">
+          <Button 
+            variant="outline" 
+            onClick={() => navigateMonth("prev")}
+            className="rounded-2xl"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </Button>
+          <h2 className="text-3xl font-bold text-gray-800">
+            {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
+          </h2>
+          <Button 
+            variant="outline" 
+            onClick={() => navigateMonth("next")}
+            className="rounded-2xl"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+        </div>
+        
+        <div className="flex items-center gap-3">
+          <div className="flex bg-gray-100 rounded-2xl p-1">
+            <Button
+              variant={view === "month" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setView("month")}
+              className="rounded-xl"
             >
-              <ChevronLeft className="w-4 h-4" />
+              Month
             </Button>
-            <h2 className="text-3xl font-bold text-gray-800">
-              {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
-            </h2>
-            <Button 
-              variant="outline" 
-              onClick={() => navigateMonth("next")}
-              className="rounded-2xl"
+            <Button
+              variant={view === "week" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setView("week")}
+              className="rounded-xl"
             >
-              <ChevronRight className="w-4 h-4" />
+              Week
+            </Button>
+            <Button
+              variant={view === "today" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setView("today")}
+              className="rounded-xl"
+            >
+              Today
             </Button>
           </div>
           
-          <div className="flex items-center gap-3">
-            <div className="flex bg-gray-100 rounded-2xl p-1">
-              <Button
-                variant={view === "month" ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setView("month")}
-                className="rounded-xl"
-              >
-                Month
-              </Button>
-              <Button
-                variant={view === "week" ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setView("week")}
-                className="rounded-xl"
-              >
-                Week
-              </Button>
-              <Button
-                variant={view === "today" ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setView("today")}
-                className="rounded-xl"
-              >
-                Today
-              </Button>
-            </div>
-            
-            <Button 
-              onClick={() => setShowTimeTable(true)}
-              className="bg-purple-500 hover:bg-purple-600 text-white rounded-2xl px-6"
-            >
-              <CalendarIcon className="w-4 h-4 mr-2" />
-              TimeTable
-            </Button>
-            
-            <Button 
-              onClick={handleAddEvent}
-              className="bg-black hover:bg-gray-800 text-white rounded-2xl px-6"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Event
-            </Button>
-          </div>
+          <Button 
+            onClick={() => setShowTimeTable(true)}
+            className="bg-purple-500 hover:bg-purple-600 text-white rounded-2xl px-6"
+          >
+            <CalendarIcon className="w-4 h-4 mr-2" />
+            TimeTable
+          </Button>
+          
+          <Button 
+            onClick={handleAddEvent}
+            className="bg-black hover:bg-gray-800 text-white rounded-2xl px-6"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Event
+          </Button>
         </div>
       </div>
       
-      <div className="p-8 pt-0">
+      <div className="flex-1">
         {renderView()}
       </div>
 

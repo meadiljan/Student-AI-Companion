@@ -33,6 +33,51 @@
   display: none;
 }
 
+/* Modern auto-hide scrollbar for settings modal */
+.scrollbar-modern {
+  /* Firefox */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 163, 175, 0.3) transparent;
+}
+
+.scrollbar-modern::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollbar-modern::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 3px;
+}
+
+.scrollbar-modern::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0);
+  border-radius: 3px;
+  transition: background-color 0.2s ease-in-out;
+}
+
+.scrollbar-modern:hover::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.6);
+}
+
+.scrollbar-modern::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.8);
+}
+
+/* Dark mode support for scrollbar */
+@media (prefers-color-scheme: dark) {
+  .scrollbar-modern {
+    scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+  }
+  
+  .scrollbar-modern:hover::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.4);
+  }
+  
+  .scrollbar-modern::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.6);
+  }
+}
+
 /* Rich text editor placeholder */
 .rich-text-editor:empty:before {
   content: attr(data-placeholder);

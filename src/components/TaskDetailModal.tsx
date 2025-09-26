@@ -38,7 +38,7 @@ const TaskDetailModal = ({
   
   if (!isOpen) return null;
 
-  const course = courses.find(c => c.title === task.course);
+  const course = courses.find(c => c.title === task.course || c.id === task.course);
 
   const getStatusBadge = (status: string, completed: boolean) => {
     if (completed) return { color: "bg-green-100 text-green-700 border-green-200", text: "Completed" };

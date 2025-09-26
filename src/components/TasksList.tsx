@@ -7,10 +7,49 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { useTasks } from "@/contexts/TasksContext";
-import { format, isToday, isTomorrow, isPast, parseISO } from "date-fns";
+import { format, isToday, isTomorrow, isPast, parseISO, parse, isBefore } from "date-fns";
 
 const TasksList = () => {
   const { tasks, toggleCompleted } = useTasks();
+
+  // Helper function to check if a task is overdue considering both date and time
+  const isTaskOverdue = (dueDate: string, dueTime?: string) => {
+    try {
+      const date = parseISO(dueDate);
+      const now = new Date();
+      
+      if (isToday(date)) {
+        // For today's tasks, check the time as well
+        if (dueTime) {
+          // Parse the time and combine with today's date
+          const timeMatch = dueTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+          if (timeMatch) {
+            let [, hours, minutes, period] = timeMatch;
+            let hour24 = parseInt(hours);
+            
+            // Convert to 24-hour format
+            if (period.toUpperCase() === 'PM' && hour24 !== 12) {
+              hour24 += 12;
+            } else if (period.toUpperCase() === 'AM' && hour24 === 12) {
+              hour24 = 0;
+            }
+            
+            const taskDateTime = new Date(date);
+            taskDateTime.setHours(hour24, parseInt(minutes), 0, 0);
+            
+            return isBefore(taskDateTime, now);
+          }
+        }
+        // If no time specified for today's task, it's not overdue
+        return false;
+      } else {
+        // For past dates (not today), it's overdue regardless of time
+        return isPast(date);
+      }
+    } catch {
+      return false;
+    }
+  };
 
   // Helper function to format due date from ISO string
   const formatDueDate = (dueDate: string, dueTime?: string) => {
@@ -21,7 +60,7 @@ const TasksList = () => {
         return `Today${dueTime ? `, ${dueTime}` : ''}`;
       } else if (isTomorrow(date)) {
         return `Tomorrow${dueTime ? `, ${dueTime}` : ''}`;
-      } else if (isPast(date)) {
+      } else if (isTaskOverdue(dueDate, dueTime)) {
         return `${format(date, 'MMM d')}${dueTime ? `, ${dueTime}` : ''} (Overdue)`;
       } else {
         return `${format(date, 'MMM d')}${dueTime ? `, ${dueTime}` : ''}`;
@@ -35,11 +74,8 @@ const TasksList = () => {
   const getDisplayStatus = (task: any) => {
     if (task.completed) return "Completed";
     
-    try {
-      const date = parseISO(task.dueDate);
-      if (isPast(date) && !task.completed) return "Overdue";
-    } catch {
-      // fallback
+    if (isTaskOverdue(task.dueDate, task.dueTime) && !task.completed) {
+      return "Overdue";
     }
     
     switch (task.status) {
@@ -97,14 +133,17 @@ const TasksList = () => {
                       <Badge
                         variant={
                           displayStatus === "Completed"
-                            ? "default"
+                            ? "outline"
                             : displayStatus === "Overdue"
                             ? "destructive"
                             : displayStatus === "In Progress"
                             ? "secondary"
                             : "outline"
                         }
-                        className="text-xs px-2 py-1"
+                        className={cn(
+                          "text-xs px-2 py-1",
+                          displayStatus === "Completed" && "border-green-500 text-green-700 bg-green-50 hover:bg-green-100"
+                        )}
                       >
                         {displayStatus}
                       </Badge>

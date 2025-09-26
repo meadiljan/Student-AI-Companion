@@ -77,7 +77,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({ selected, onSelect, events 
               variant="ghost"
               className={cn(
                 "flex flex-col items-center justify-center p-2 rounded-2xl h-auto",
-                isSelected && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground",
+                isSelected && "border-2 border-primary bg-transparent text-primary hover:bg-primary/10",
                 hasEvent && !isSelected && "bg-accent text-accent-foreground hover:bg-accent/80",
                 !isSelected && "text-muted-foreground hover:bg-muted/50"
               )}

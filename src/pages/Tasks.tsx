@@ -377,9 +377,9 @@ const Tasks = () => {
               setEditingTask(null);
               setShowNewTask(!showNewTask);
             }}
-            className="bg-black hover:bg-gray-800 text-white rounded-2xl h-12 px-6 font-medium"
+            className="bg-black hover:bg-gray-800 text-white rounded-2xl px-6"
           >
-            <Plus className="w-5 h-5 mr-2" />
+            <Plus className="w-4 h-4 mr-2" />
             New Task
           </Button>
         </div>
@@ -487,7 +487,10 @@ const Tasks = () => {
                               )}
                               
                               <Badge variant="outline" className="text-xs">
-                                {task.course}
+                                {(() => {
+                                  const course = courses.find(c => c.title === task.course || c.id === task.course);
+                                  return course ? course.title : task.course;
+                                })()}
                               </Badge>
                             </div>
                           </div>

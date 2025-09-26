@@ -412,7 +412,7 @@ const UpcomingEvents = () => {
                     "relative flex flex-col items-center justify-center p-2 rounded-2xl h-auto transition-colors focus:ring-2 focus:ring-ring focus:ring-offset-2",
                     {
                       "bg-black text-white hover:bg-gray-800": isCurrentDay,
-                      "bg-primary text-primary-foreground hover:bg-primary/90": isSelected && !isCurrentDay,
+                      "border-2 border-primary bg-transparent text-primary hover:bg-primary/10": isSelected && !isCurrentDay,
                       "bg-muted text-muted-foreground hover:bg-muted/80": !isSelected && !isCurrentDay,
                     }
                   )}
@@ -427,7 +427,7 @@ const UpcomingEvents = () => {
                   {hasEvent && (
                     <span className={cn(
                       "absolute bottom-1.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full",
-                      (isCurrentDay || isSelected) ? "bg-white/70" : "bg-primary"
+                      isCurrentDay ? "bg-white/70" : isSelected ? "bg-primary" : "bg-primary"
                     )}></span>
                   )}
                 </Button>

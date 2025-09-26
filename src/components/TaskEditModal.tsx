@@ -67,8 +67,12 @@ const TaskEditModal = ({
     setDueDate(initialData?.dueDate || "");
     setDueTime(initialData?.dueTime || "");
     setPriority(initialData?.priority || "medium");
-    setCourse(initialData?.course || "");
-  }, [initialData]);
+    
+    // Handle course - convert ID to title if needed
+    const courseValue = initialData?.course || "";
+    const foundCourse = courses.find(c => c.title === courseValue || c.id === courseValue);
+    setCourse(foundCourse ? foundCourse.title : courseValue);
+  }, [initialData, courses]);
 
   // Generate time options
   const generateTimeOptions = () => {

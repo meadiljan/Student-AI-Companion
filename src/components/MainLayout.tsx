@@ -134,7 +134,6 @@ const MainLayout = () => {
   // AI Integration settings
   const [selectedModel, setSelectedModel] = useState("gemini-2.5-pro");
   const [apiKey, setApiKey] = useState("");
-  const [isAiEnabled, setIsAiEnabled] = useState(false);
   const [testStatus, setTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
   const [testMessage, setTestMessage] = useState("");
 
@@ -359,8 +358,7 @@ const MainLayout = () => {
       timezone,
       ai: {
         selectedModel,
-        apiKey: apiKey ? "********" : "", // Don't save actual API key in localStorage for security
-        isAiEnabled
+        apiKey: apiKey ? "********" : "" // Don't save actual API key in localStorage for security
       },
       userProfile: {
         name: userName,
@@ -401,7 +399,6 @@ const MainLayout = () => {
     setTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone);
     setSelectedModel("gemini-2.5-pro");
     setApiKey("");
-    setIsAiEnabled(false);
     
     // Reset user information to default
     setUserName(user.name);
@@ -435,7 +432,6 @@ const MainLayout = () => {
       try {
         const settings = JSON.parse(savedSettings);
         if (settings.ai) {
-          setIsAiEnabled(settings.ai.isAiEnabled || false);
           setSelectedModel(settings.ai.selectedModel || "gemini-2.5-pro");
         }
       } catch (e) {
@@ -454,7 +450,11 @@ const MainLayout = () => {
 
   return (
     <div className="flex min-h-screen bg-background p-4">
-      <Sidebar isCollapsed={isCollapsed} className="hidden md:flex" />
+      <Sidebar 
+        isCollapsed={isCollapsed} 
+        className="hidden md:flex"
+        onSettingsClick={() => setIsSettingsModalOpen(true)}
+      />
       <div
         className={`relative flex flex-1 flex-col rounded-2xl bg-card shadow-lg transition-all duration-300 ${
           isCollapsed ? "md:ml-4" : "md:ml-6"
@@ -604,8 +604,9 @@ const MainLayout = () => {
       {/* Settings Modal */}
       {isSettingsModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-background rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] relative">
-            <div className="flex items-center justify-between p-6 border-b border-border/50">
+          <div className="bg-background rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] relative flex flex-col">
+            {/* Modal Header - Fixed */}
+            <div className="flex items-center justify-between p-6 border-b border-border/50 flex-shrink-0">
               <h2 className="text-2xl font-bold">Settings</h2>
               <Button
                 variant="ghost"
@@ -628,15 +629,18 @@ const MainLayout = () => {
                 </svg>
               </Button>
             </div>
-            <div className="p-6 overflow-y-auto max-h-[calc(90vh-4rem)]">
-              <Tabs defaultValue="general" className="w-full">
-                <TabsList className="grid w-full grid-cols-5 bg-background/80 backdrop-blur-sm border-border/50 rounded-2xl p-1 shadow-lg">
-                  <TabsTrigger value="general" className="rounded-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">General</TabsTrigger>
-                  <TabsTrigger value="profile" className="rounded-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Profile</TabsTrigger>
-                  <TabsTrigger value="notifications" className="rounded-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Notifications</TabsTrigger>
-                  <TabsTrigger value="ai" className="rounded-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">AI Integration</TabsTrigger>
-                  <TabsTrigger value="account" className="rounded-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Account</TabsTrigger>
-                </TabsList>
+            
+            {/* Modal Content - Scrollable */}
+            <div className="flex-1 overflow-y-auto p-6 pt-0 scrollbar-modern">
+              <div className="py-6">
+                <Tabs defaultValue="general" className="w-full">
+                  <TabsList className="grid w-full grid-cols-5 bg-background/80 backdrop-blur-sm border-border/50 rounded-2xl p-1 shadow-lg">
+                    <TabsTrigger value="general" className="rounded-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">General</TabsTrigger>
+                    <TabsTrigger value="profile" className="rounded-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Profile</TabsTrigger>
+                    <TabsTrigger value="notifications" className="rounded-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Notifications</TabsTrigger>
+                    <TabsTrigger value="ai" className="rounded-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">AI Integration</TabsTrigger>
+                    <TabsTrigger value="account" className="rounded-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Account</TabsTrigger>
+                  </TabsList>
                 
                 <TabsContent value="general" className="mt-6">
                   <Card className="bg-background/80 backdrop-blur-sm border-border/50 rounded-2xl shadow-lg">
@@ -857,19 +861,6 @@ const MainLayout = () => {
                       <CardDescription>Configure AI services and API keys</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <Label>Enable AI Features</Label>
-                          <p className="text-sm text-muted-foreground">Turn on AI-powered assistance</p>
-                        </div>
-                        <Switch
-                          checked={isAiEnabled}
-                          onCheckedChange={setIsAiEnabled}
-                        />
-                      </div>
-                      
-                      <Separator />
-                      
                       <div className="space-y-2">
                         <Label>AI Model</Label>
                         <div className="relative" ref={modelDropdownRef}>
@@ -1056,9 +1047,12 @@ const MainLayout = () => {
                   </Card>
                 </TabsContent>
               </Tabs>
-              
-              {/* Action Buttons */}
-              <div className="flex justify-end space-x-4 pt-4">
+              </div>
+            </div>
+            
+            {/* Modal Footer - Sticky */}
+            <div className="flex-shrink-0 border-t border-border/50 p-6 bg-background/95 backdrop-blur-sm rounded-b-3xl">
+              <div className="flex justify-end space-x-4">
                 <Button 
                   variant="ghost" 
                   onClick={handleResetSettings}
@@ -1068,7 +1062,7 @@ const MainLayout = () => {
                 </Button>
                 <Button 
                   onClick={handleSaveSettings}
-                  className="bg-primary/90 backdrop-blur-sm border border-primary/50 rounded-2xl hover:bg-primary"
+                  className="bg-black hover:bg-gray-800 text-white rounded-2xl px-6"
                 >
                   Save Settings
                 </Button>
@@ -1080,18 +1074,5 @@ const MainLayout = () => {
     </div>
   );
 };
-
-// Add CSS for hiding scrollbars
-const style = document.createElement('style');
-style.innerHTML = `
-  .scrollbar-hide {
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
-  }
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;  /* Chrome, Safari, Opera*/
-  }
-`;
-document.head.appendChild(style);
 
 export default MainLayout;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,13 +19,15 @@ import {
   Star,
   Archive,
   MoreHorizontal,
-  Pin
+  Pin,
+  ChevronDown
 } from 'lucide-react';
 import { useCourses } from '@/contexts/CoursesContext';
 import RichTextEditor from '@/components/RichTextEditor';
 import NoteDetailModal from '@/components/NoteDetailModal';
 import NoteCreateModal from '@/components/NoteCreateModal';
 import FormattedContent from '@/components/FormattedContent';
+import { cn } from '@/lib/utils';
 
 interface Note {
   id: string;
@@ -54,6 +56,11 @@ const Notes = () => {
   const [isNoteDetailOpen, setIsNoteDetailOpen] = useState(false);
   const [isNoteCreateOpen, setIsNoteCreateOpen] = useState(false);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
+  const [showCourseDropdown, setShowCourseDropdown] = useState(false);
+  const [showSortDropdown, setShowSortDropdown] = useState(false);
+  
+  const courseDropdownRef = useRef<HTMLDivElement>(null);
+  const sortDropdownRef = useRef<HTMLDivElement>(null);
 
   // Initialize with sample notes
   useEffect(() => {
@@ -128,6 +135,31 @@ const Notes = () => {
     
     setFilteredNotes(result);
   }, [searchTerm, selectedTags, selectedCourse, notes, sortBy]);
+
+  // Handle clicks outside dropdowns
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      // Check if click is outside course dropdown
+      if (showCourseDropdown && courseDropdownRef.current && 
+          !courseDropdownRef.current.contains(target)) {
+        setShowCourseDropdown(false);
+      }
+      // Check if click is outside sort dropdown
+      if (showSortDropdown && sortDropdownRef.current && 
+          !sortDropdownRef.current.contains(target)) {
+        setShowSortDropdown(false);
+      }
+    };
+
+    if (showCourseDropdown || showSortDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showCourseDropdown, showSortDropdown]);
 
   const handleCreateNote = (noteData: { 
     title: string; 
@@ -280,7 +312,7 @@ const Notes = () => {
             setEditingNote(null);
             setIsNoteCreateOpen(true);
           }}
-          className="rounded-full bg-primary hover:bg-primary/90 shadow-lg backdrop-blur-sm"
+          className="bg-black hover:bg-gray-800 text-white rounded-2xl px-6"
         >
           <Plus className="mr-2 h-4 w-4" />
           New Note
@@ -288,77 +320,175 @@ const Notes = () => {
       </div>
 
       {/* Search and Filters */}
-      <div className="mb-6 space-y-4 p-4 rounded-2xl backdrop-blur-sm bg-card/80 border border-border shadow-sm">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search notes..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 rounded-2xl"
-          />
-        </div>
-
-        <div className="flex flex-wrap gap-2">
+      <div className="mb-6 space-y-4">
+        {/* Search and All Controls Row */}
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search notes..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 rounded-2xl border-0 bg-muted focus:ring-2 focus:ring-black"
+            />
+          </div>
+          
           <div className="flex items-center gap-2">
             <Filter className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm text-muted-foreground">Filter by:</span>
           </div>
           
-          <select
-            value={selectedCourse || ''}
-            onChange={(e) => setSelectedCourse(e.target.value || null)}
-            className="rounded-2xl border bg-background px-3 py-1 text-sm"
-          >
-            <option value="">All Courses</option>
-            {courses.map(course => (
-              <option key={course.id} value={course.id}>
-                {course.title}
-              </option>
-            ))}
-          </select>
-          
-          <div className="flex flex-wrap gap-2">
-            {allTags.map(tag => (
-              <Badge
-                key={tag}
-                variant={selectedTags.includes(tag) ? "default" : "secondary"}
-                className="cursor-pointer rounded-full px-3 py-1"
-                onClick={() => toggleTag(tag)}
-              >
-                <Tag className="mr-1 h-3 w-3" />
-                {tag}
-              </Badge>
-            ))}
-          </div>
-          
-          <div className="flex gap-2">
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as 'date' | 'title')}
-              className="rounded-2xl border bg-background px-3 py-1 text-sm"
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowCourseDropdown(!showCourseDropdown)}
+              className="px-3 py-2 text-sm border-0 bg-muted rounded-2xl focus:ring-2 focus:ring-black text-left hover:bg-muted/80 flex items-center justify-between min-w-[140px]"
             >
-              <option value="date">Sort by Date</option>
-              <option value="title">Sort by Title</option>
-            </select>
+              <span className={selectedCourse ? "text-gray-900" : "text-gray-500"}>
+                {selectedCourse ? courses.find(c => c.id === selectedCourse)?.title || "All Courses" : "All Courses"}
+              </span>
+              <ChevronDown className="w-4 h-4 text-gray-400 ml-2" />
+            </button>
             
-            <Button
-              variant={viewMode === 'grid' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setViewMode('grid')}
-              className="rounded-full"
-            >
-              Grid View
-            </Button>
-            <Button
-              variant={viewMode === 'list' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setViewMode('list')}
-              className="rounded-full"
-            >
-              List View
-            </Button>
+            {showCourseDropdown && (
+              <div 
+                ref={courseDropdownRef}
+                className="absolute z-50 mt-1 w-full min-w-[200px] bg-white/95 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl max-h-48 overflow-y-auto scrollbar-hide"
+              >
+                <div className="p-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedCourse(null);
+                      setShowCourseDropdown(false);
+                    }}
+                    className={cn(
+                      "w-full flex items-center px-3 py-2.5 rounded-xl text-left hover:bg-gray-100 transition-colors",
+                      !selectedCourse && "bg-black text-white hover:bg-gray-800"
+                    )}
+                  >
+                    <div className="flex-1">
+                      <div className="font-medium">All Courses</div>
+                      <div className="text-xs text-gray-500">Show notes from all courses</div>
+                    </div>
+                  </button>
+                  {courses.length > 0 ? (
+                    courses.map((course) => (
+                      <button
+                        key={course.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedCourse(course.id);
+                          setShowCourseDropdown(false);
+                        }}
+                        className={cn(
+                          "w-full flex items-center px-3 py-2.5 rounded-xl text-left hover:bg-gray-100 transition-colors",
+                          selectedCourse === course.id && "bg-black text-white hover:bg-gray-800"
+                        )}
+                      >
+                        <div className={cn("w-3 h-3 rounded-full mr-3", course.color)} />
+                        <div className="flex-1">
+                          <div className="font-medium">{course.title}</div>
+                          <div className="text-xs text-gray-500 truncate">{course.instructor}</div>
+                        </div>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="px-3 py-2.5 text-sm text-gray-500 text-center">
+                      No courses available
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
+          
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowSortDropdown(!showSortDropdown)}
+              className="px-3 py-2 text-sm border-0 bg-muted rounded-2xl focus:ring-2 focus:ring-black text-left hover:bg-muted/80 flex items-center justify-between min-w-[130px]"
+            >
+              <span className="text-gray-900">
+                {sortBy === 'date' ? 'Sort by Date' : 'Sort by Title'}
+              </span>
+              <ChevronDown className="w-4 h-4 text-gray-400 ml-2" />
+            </button>
+            
+            {showSortDropdown && (
+              <div 
+                ref={sortDropdownRef}
+                className="absolute z-50 mt-1 w-full min-w-[160px] bg-white/95 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl max-h-48 overflow-y-auto scrollbar-hide"
+              >
+                <div className="p-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSortBy('date');
+                      setShowSortDropdown(false);
+                    }}
+                    className={cn(
+                      "w-full flex items-center px-3 py-2.5 rounded-xl text-left hover:bg-gray-100 transition-colors",
+                      sortBy === 'date' && "bg-black text-white hover:bg-gray-800"
+                    )}
+                  >
+                    <div className="flex-1">
+                      <div className="font-medium">Sort by Date</div>
+                      <div className="text-xs text-gray-500">Most recent first</div>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSortBy('title');
+                      setShowSortDropdown(false);
+                    }}
+                    className={cn(
+                      "w-full flex items-center px-3 py-2.5 rounded-xl text-left hover:bg-gray-100 transition-colors",
+                      sortBy === 'title' && "bg-black text-white hover:bg-gray-800"
+                    )}
+                  >
+                    <div className="flex-1">
+                      <div className="font-medium">Sort by Title</div>
+                      <div className="text-xs text-gray-500">Alphabetical order</div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <Button
+            variant={viewMode === 'grid' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setViewMode('grid')}
+            className="rounded-full"
+          >
+            Grid View
+          </Button>
+          <Button
+            variant={viewMode === 'list' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setViewMode('list')}
+            className="rounded-full"
+          >
+            List View
+          </Button>
+        </div>
+
+        {/* Tags Row */}
+        <div className="flex flex-wrap gap-2">
+          {allTags.map(tag => (
+            <Badge
+              key={tag}
+              variant={selectedTags.includes(tag) ? "default" : "secondary"}
+              className="cursor-pointer rounded-full px-3 py-1"
+              onClick={() => toggleTag(tag)}
+            >
+              <Tag className="mr-1 h-3 w-3" />
+              {tag}
+            </Badge>
+          ))}
         </div>
       </div>
 
@@ -402,7 +532,6 @@ const Notes = () => {
                             {note.title}
                           </CardTitle>
                           <div className="flex gap-1">
-                            {note.isPinned && <Pin className="h-4 w-4 text-primary" />}
                             <Button
                               variant="ghost"
                               size="icon"

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -11,16 +11,15 @@ import {
   CalendarDays,
   ClipboardList,
   GraduationCap,
-  Lightbulb,
   NotebookPen,
   Settings,
   BookOpenCheck,
-  User,
   LogOut,
 } from "lucide-react";
 
 interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {
   isCollapsed: boolean;
+  onSettingsClick?: () => void;
 }
 
 const navItems = [
@@ -49,20 +48,12 @@ const navItems = [
     href: "/notes",
     icon: NotebookPen,
   },
-  {
-    title: "Study Focus",
-    href: "/study-focus",
-    icon: Lightbulb,
-  },
 ];
 
-export function Sidebar({ className, isCollapsed }: SidebarProps) {
-  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
-
+export function Sidebar({ className, isCollapsed, onSettingsClick }: SidebarProps) {
   const handleLogout = () => {
     // In a real app, you would handle logout logic here
     console.log("Logout clicked");
-    setIsAccountMenuOpen(false);
   };
 
   return (
@@ -117,54 +108,25 @@ export function Sidebar({ className, isCollapsed }: SidebarProps) {
         </nav>
       </ScrollArea>
       <div className="mt-auto px-2 py-4">
-        {/* Account Section with Dropdown */}
-        <div className="relative">
-          <Button
-            variant="ghost"
-            className={cn(
-              "w-full justify-start rounded-2xl",
-              isCollapsed ? "h-9 px-2" : "h-10 px-4",
-            )}
-            onClick={() => setIsAccountMenuOpen(!isAccountMenuOpen)}
-          >
-            <User className={cn("h-5 w-5", !isCollapsed && "mr-3")} />
-            <span
-              className={cn(
-                "transition-opacity duration-300",
-                isCollapsed && "opacity-0",
-              )}
-            >
-              Account
-            </span>
-          </Button>
-          
-          {/* Account Dropdown Menu */}
-          {isAccountMenuOpen && !isCollapsed && (
-            <div className="absolute bottom-full left-0 right-0 mb-2 z-50 bg-background/80 backdrop-blur-sm border border-border/50 rounded-2xl shadow-lg py-2">
-              <Button
-                variant="ghost"
-                className="w-full justify-start rounded-2xl h-10 px-4"
-                onClick={() => {
-                  // This will be handled by the parent component
-                  // For now, we'll just close the menu
-                  setIsAccountMenuOpen(false);
-                  // The actual settings opening is handled in MainLayout
-                }}
-              >
-                <Settings className="h-5 w-5 mr-3" />
-                Settings
-              </Button>
-              <Button
-                variant="ghost"
-                className="w-full justify-start rounded-2xl h-10 px-4"
-                onClick={handleLogout}
-              >
-                <LogOut className="h-5 w-5 mr-3" />
-                Logout
-              </Button>
-            </div>
+        {/* Settings Section */}
+        <Button
+          variant="ghost"
+          className={cn(
+            "w-full justify-start rounded-2xl",
+            isCollapsed ? "h-9 px-2" : "h-10 px-4",
           )}
-        </div>
+          onClick={onSettingsClick}
+        >
+          <Settings className={cn("h-5 w-5", !isCollapsed && "mr-3")} />
+          <span
+            className={cn(
+              "transition-opacity duration-300",
+              isCollapsed && "opacity-0",
+            )}
+          >
+            Settings
+          </span>
+        </Button>
       </div>
     </div>
   );

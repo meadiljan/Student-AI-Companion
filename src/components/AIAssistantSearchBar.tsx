@@ -1,7 +1,8 @@
-import { Plus, Mic, Search, Sparkles, X, CheckCircle, Clock, Calendar, Flag, Loader2 } from "lucide-react";
+import { Plus, Mic, Search, Bot, X, CheckCircle, Clock, Calendar, Flag, Loader2, Zap, HelpCircle, MessageCircleQuestion } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState, useRef, useEffect } from "react";
+import React from "react";
 import { eventManager, SettingsChangeListener } from "@/utils/eventManager";
 import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
@@ -10,7 +11,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Task } from "@/contexts/TasksContext";
 import { bulkTasks as bulkTasksApi, listTasks as listTasksApi, analytics as analyticsApi } from "@/services/agentApi";
 import { useTasks } from "@/contexts/TasksContext";
+import { useCourses } from "@/contexts/CoursesContext";
 import { conversationMemory } from "@/services/conversationMemory";
+import { courseDetectionService } from "@/services/courseDetectionService";
 
 interface CalendarEvent {
   id: number;
@@ -555,6 +558,7 @@ export default function AIAssistantSearchBar(props: AIAssistantSearchBarProps = 
   const { onCreateEvent } = props;
   const { toast } = useToast();
   const { tasks, addTask, updateTask, deleteTask, toggleCompleted, toggleStarred, refreshTasks } = useTasks();
+  const { courses } = useCourses();
   const [query, setQuery] = useState("");
   const [isExpanded, setIsExpanded] = useState(false);
   const [showCommandMenu, setShowCommandMenu] = useState(false);
@@ -563,6 +567,17 @@ export default function AIAssistantSearchBar(props: AIAssistantSearchBarProps = 
   const [chatMessages, setChatMessages] = useState<Array<{role: string, content: string}>>([]);
   const [selectedModel, setSelectedModel] = useState<string>("gemini-2.5-pro"); // Add state for selected model
   const [isCreatingTask, setIsCreatingTask] = useState(false); // State to track task creation progress
+  const [actionProgress, setActionProgress] = useState<{
+    isActive: boolean;
+    currentStep: string;
+    totalSteps: number;
+    currentStepIndex: number;
+  }>({
+    isActive: false,
+    currentStep: '',
+    totalSteps: 0,
+    currentStepIndex: 0
+  });
   const searchBarRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const commandMenuRef = useRef<HTMLDivElement>(null);
@@ -593,13 +608,13 @@ export default function AIAssistantSearchBar(props: AIAssistantSearchBarProps = 
       id: 'create', 
       label: 'Agent', 
       description: 'Create a new task or event with AI', 
-      icon: <Plus className="h-4 w-4" /> 
+      icon: <Zap className="h-4 w-4" /> 
     },
     { 
       id: 'ask', 
       label: 'Ask', 
       description: 'Ask a question or get help', 
-      icon: <Sparkles className="h-4 w-4" /> 
+      icon: <MessageCircleQuestion className="h-4 w-4" /> 
     }
   ];
 
@@ -1120,7 +1135,8 @@ Session Info: This conversation has ${sessionSummary.messageCount} messages cove
 Consider previous interactions and provide personalized, context-aware responses. Reference previous tasks, preferences, and conversation patterns when relevant.
 
 ` : ''}AVAILABLE ACTIONS:
-- CREATE_TASK: Create a new task
+- CREATE_TASK: Create a single new task
+- CREATE_MULTIPLE_TASKS: Create multiple tasks in one request
 - UPDATE_TASK: Modify an existing task  
 - DELETE_TASK: Remove a specific task
 - DELETE_MULTIPLE: Remove multiple tasks (by criteria/bulk)
@@ -1137,7 +1153,20 @@ Consider previous interactions and provide personalized, context-aware responses
 - RESCHEDULE_MULTIPLE: Change due dates for multiple tasks
 - ORGANIZE_TASKS: Reorganize/categorize tasks
 - ANALYTICS: Provide task statistics and insights
+- MULTI_ACTION: Execute multiple different actions simultaneously
 - CLARIFY: Ask for more information when unclear
+
+TASK DESCRIPTION GENERATION:
+When creating tasks, generate meaningful descriptions that:
+1. **Context-Aware**: Relate to the user's original query and provide additional context
+2. **Course-Specific**: Include relevant details based on the assigned course (e.g., "Study calculus concepts including derivatives and limits" for calculus course)
+3. **Actionable**: Provide clear guidance on what needs to be accomplished
+4. **Detailed**: Expand beyond the title with specific requirements or steps
+5. **Educational**: For academic tasks, include learning objectives or study focus areas
+Examples:
+- Query: "Study for calculus exam tomorrow" → Description: "Review calculus concepts including derivatives, integrals, and limits. Focus on problem-solving techniques and practice sample problems from chapters 4-6."
+- Query: "Work on typography project" → Description: "Continue developing the typography design project. Focus on font selection, layout composition, and text hierarchy principles learned in class."
+- Query: "UX research for mobile app" → Description: "Conduct user experience research for mobile application design. Include user interviews, wireframe analysis, and usability testing considerations."
 
 CURRENT DATE: ${new Date().toISOString().split('T')[0]}
 
@@ -1146,6 +1175,15 @@ ${tasks.map(task => {
   const isOverdue = new Date(task.dueDate) < new Date() && !task.completed;
   return `- ID: ${task.id}, Title: "${task.title}", Status: ${task.status}, Priority: ${task.priority}, Due: ${task.dueDate}${task.dueTime ? ` at ${task.dueTime}` : ''}, Course: ${task.course}, Completed: ${task.completed}, Starred: ${task.starred}${isOverdue ? ' [OVERDUE]' : ''}`;
 }).join('\n')}
+
+AVAILABLE COURSES:
+${courses.map(course => `- ${course.id}: "${course.title}" (Instructor: ${course.instructor})`).join('\n')}
+
+INTELLIGENT COURSE ASSIGNMENT:
+When creating tasks, I can automatically detect and assign appropriate courses based on the task content, keywords, and context. Available courses include:
+${courses.map(course => `• ${course.title} - Keywords: ${course.id.includes('typography') ? 'fonts, typography, type design' : course.id.includes('ux') ? 'mobile design, UI/UX, user experience' : course.id.includes('illustration') ? 'digital art, drawing, illustration' : course.id.includes('web') ? 'web development, programming, HTML, CSS, JavaScript, React' : course.id.includes('art-history') ? 'art history, renaissance, art movements' : course.id.includes('calculus') ? 'math, calculus, mathematics' : 'general'}`).join('\n')}
+
+If a task mentions course-related content or keywords, automatically assign it to the most relevant course. Use 'General' only when no course relationship is detected.
 
 USER REQUEST: "${userQuery}"
 
@@ -1175,6 +1213,18 @@ BULK OPERATION EXAMPLES:
 - "show me pending tasks" → LIST_TASKS (filter: status="pending")
 - "how many tasks do I have?" → ANALYTICS (count statistics)
 
+MULTIPLE TASK CREATION EXAMPLES:
+- "create tasks: finish homework, study for exam, and buy groceries" → CREATE_MULTIPLE_TASKS
+- "add three tasks: math assignment, history project, call mom" → CREATE_MULTIPLE_TASKS
+- "make tasks for: workout at 6am, meeting at 2pm, dinner at 7pm" → CREATE_MULTIPLE_TASKS
+- "create tasks for today: review notes, complete lab, submit report" → CREATE_MULTIPLE_TASKS
+
+MULTI-ACTION EXAMPLES:
+- "create task: study math, and mark homework task as done" → MULTI_ACTION
+- "delete completed tasks and create new task: prepare presentation" → MULTI_ACTION
+- "star all high priority tasks and create task: weekend planning" → MULTI_ACTION
+- "complete the math task and create tasks: review chemistry, call advisor" → MULTI_ACTION
+
 RESPONSE FORMAT:
 {
   "action": "ACTION_NAME",
@@ -1196,14 +1246,48 @@ RESPONSE FORMAT:
   "taskData": {
     // For single operations: MUST include taskId to identify the specific task
     "taskId": "exact_task_id_from_list_above",
-    // For bulk operations: update data to apply to all matching tasks
+    // For single task creation or bulk operations: update data
     "title": "new title",
+    "description": "Meaningful description based on user query and course context",
     "dueDate": "YYYY-MM-DD", 
     "priority": "high/medium/low",
     "course": "course name",
     "completed": true/false,
     "starred": true/false
   },
+  // For CREATE_MULTIPLE_TASKS: array of task objects
+  "multipleTasks": [
+    {
+      "title": "Task 1 title",
+      "description": "Detailed description based on query context and course requirements",
+      "dueDate": "YYYY-MM-DD",
+      "dueTime": "HH:MM AM/PM",
+      "priority": "high/medium/low",
+      "course": "course name"
+    },
+    {
+      "title": "Task 2 title",
+      "description": "Contextual description relating to the task and course content",
+      "dueDate": "YYYY-MM-DD",
+      "priority": "high/medium/low",
+      "course": "course name"
+    }
+  ],
+  // For MULTI_ACTION: array of actions to execute
+  "multiActions": [
+    {
+      "action": "CREATE_TASK",
+      "taskData": {"title": "New task", "priority": "high"}
+    },
+    {
+      "action": "COMPLETE_TASK", 
+      "taskData": {"taskId": "existing_task_id"}
+    },
+    {
+      "action": "DELETE_MULTIPLE",
+      "criteria": {"completed": true}
+    }
+  ],
   "confirmationRequired": true/false, // For destructive bulk operations
   "response": "Detailed, conversational response explaining the action"
 }
@@ -1214,7 +1298,15 @@ SINGLE TASK OPERATION EXAMPLES:
 - "star the design project" → {"action": "STAR_TASK", "taskData": {"taskId": "1234"}}
 - "update math task priority to high" → {"action": "UPDATE_TASK", "taskData": {"taskId": "1234", "priority": "high"}}
 
+MULTIPLE TASK CREATION EXAMPLES:
+- "create tasks: study math, call mom, buy groceries" → {"action": "CREATE_MULTIPLE_TASKS", "multipleTasks": [{"title": "Study math", "priority": "medium"}, {"title": "Call mom", "priority": "low"}, {"title": "Buy groceries", "priority": "medium"}]}
+
+MULTI-ACTION EXAMPLES:
+- "complete homework task and create new task: study for exam" → {"action": "MULTI_ACTION", "multiActions": [{"action": "COMPLETE_TASK", "taskData": {"taskId": "homework_id"}}, {"action": "CREATE_TASK", "taskData": {"title": "Study for exam"}}]}
+
 IMPORTANT: For single task operations (UPDATE_TASK, DELETE_TASK, COMPLETE_TASK, STAR_TASK), you MUST identify the exact task by matching the user's description to the task titles/content in the current task list above, then provide the corresponding task ID in taskData.taskId.
+
+CRITICAL: For all task creation (CREATE_TASK, CREATE_MULTIPLE_TASKS, MULTI_ACTION with CREATE_TASK), ALWAYS include meaningful, contextual descriptions. Never use generic descriptions like "Task description". Generate specific, course-aware, actionable descriptions based on the user's query and assigned course context.
 
 Be extremely intelligent about understanding user intent. Handle typos, informal language, and complex requests gracefully.`;
 
@@ -1307,10 +1399,43 @@ Be extremely intelligent about understanding user intent. Handle typos, informal
       switch (action) {
         case 'CREATE_TASK':
           if (taskData && taskData.title) {
+            // Start progress tracking
+            setActionProgress({
+              isActive: true,
+              currentStep: 'Analyzing task details...',
+              totalSteps: 4,
+              currentStepIndex: 1
+            });
+            
             // Smart defaults for task creation
             const today = new Date();
             const tomorrow = new Date(today);
             tomorrow.setDate(today.getDate() + 1);
+            
+            // Step 2: Course detection
+            setActionProgress(prev => ({
+              ...prev,
+              currentStep: 'Detecting course assignment...',
+              currentStepIndex: 2
+            }));
+            
+            // Detect course intelligently if not specified
+            let detectedCourse = taskData.course || 'General';
+            if (!taskData.course || taskData.course === 'General') {
+              // Use both original query and task title/description for course detection
+              const detectionQuery = `${originalQuery} ${taskData.title} ${taskData.description || ''}`.toLowerCase();
+              const intelligentCourse = courseDetectionService.detectCourse(detectionQuery, courses);
+              if (intelligentCourse) {
+                detectedCourse = intelligentCourse;
+              }
+            }
+            
+            // Step 3: Creating task
+            setActionProgress(prev => ({
+              ...prev,
+              currentStep: 'Creating task...',
+              currentStepIndex: 3
+            }));
             
             const newTask = {
               title: taskData.title,
@@ -1319,7 +1444,7 @@ Be extremely intelligent about understanding user intent. Handle typos, informal
               dueTime: taskData.dueTime || undefined,
               priority: (taskData.priority as "low" | "medium" | "high") || 'medium',
               status: 'pending' as const,
-              course: taskData.course || 'General',
+              course: detectedCourse,
               tags: taskData.tags || [],
               completed: false,
               starred: false
@@ -1328,7 +1453,22 @@ Be extremely intelligent about understanding user intent. Handle typos, informal
             // Use context method which calls API internally
             await addTask(newTask);
             
+            // Step 4: Finalizing
+            setActionProgress(prev => ({
+              ...prev,
+              currentStep: 'Task created successfully!',
+              currentStepIndex: 4
+            }));
+            
             setTimeout(() => {
+              // Clear progress state
+              setActionProgress({
+                isActive: false,
+                currentStep: '',
+                totalSteps: 0,
+                currentStepIndex: 0
+              });
+              
               const dueDateStr = newTask.dueDate === today.toISOString().split('T')[0] 
                 ? 'today' 
                 : newTask.dueDate === tomorrow.toISOString().split('T')[0] 
@@ -1338,11 +1478,16 @@ Be extremely intelligent about understanding user intent. Handle typos, informal
               const timeStr = newTask.dueTime ? ` at ${newTask.dueTime}` : '';
               const priorityEmoji = newTask.priority === 'high' ? '🔥' : newTask.priority === 'low' ? '📝' : '⭐';
               
+              // Add course detection context if course was auto-detected
+              const courseInfo = detectedCourse !== 'General' && !taskData.course 
+                ? `\n🎯 *Auto-detected course based on content*` 
+                : '';
+              
               setChatMessages(prev => [
                 ...prev,
                 { 
                   role: 'assistant', 
-                  content: `✅ Task created successfully!\n\n${priorityEmoji} **${newTask.title}**\n📅 Due: ${dueDateStr}${timeStr}\n📚 Course: ${newTask.course}\n🏷️ Priority: ${newTask.priority}` 
+                  content: `✅ Task created successfully!\n\n${priorityEmoji} **${newTask.title}**\n📅 Due: ${dueDateStr}${timeStr}\n📚 Course: ${newTask.course}\n🏷️ Priority: ${newTask.priority}${courseInfo}` 
                 }
               ]);
               toast({
@@ -1733,6 +1878,209 @@ Be extremely intelligent about understanding user intent. Handle typos, informal
           setClarificationContext({ originalQuery: originalQuery, question: parsedResponse?.taskData?.clarificationQuestion });
           break;
 
+        case 'CREATE_MULTIPLE_TASKS':
+          if (parsedResponse.multipleTasks && Array.isArray(parsedResponse.multipleTasks)) {
+            const today = new Date();
+            let createdCount = 0;
+            const createdTasks = [];
+            
+            // Create each task with intelligent course detection
+            for (const taskSpec of parsedResponse.multipleTasks) {
+              if (taskSpec.title) {
+                // Detect course intelligently if not specified
+                let detectedCourse = taskSpec.course || 'General';
+                if (!taskSpec.course || taskSpec.course === 'General') {
+                  // Use original query and task title/description for course detection
+                  const detectionQuery = `${originalQuery} ${taskSpec.title} ${taskSpec.description || ''}`.toLowerCase();
+                  const intelligentCourse = courseDetectionService.detectCourse(detectionQuery, courses);
+                  if (intelligentCourse) {
+                    detectedCourse = intelligentCourse;
+                  }
+                }
+                
+                const newTask = {
+                  title: taskSpec.title,
+                  description: taskSpec.description || undefined,
+                  dueDate: taskSpec.dueDate || today.toISOString().split('T')[0],
+                  dueTime: taskSpec.dueTime || undefined,
+                  priority: (taskSpec.priority as "low" | "medium" | "high") || 'medium',
+                  status: 'pending' as const,
+                  course: detectedCourse,
+                  tags: taskSpec.tags || [],
+                  completed: false,
+                  starred: false
+                };
+                
+                await addTask(newTask);
+                createdTasks.push(newTask);
+                createdCount++;
+              }
+            }
+            
+            setTimeout(() => {
+              const taskList = createdTasks.map(task => {
+                const priorityEmoji = task.priority === 'high' ? '🔥' : task.priority === 'low' ? '📝' : '⭐';
+                return `${priorityEmoji} **${task.title}** (${task.course})`;
+              }).join('\n');
+              
+              // Check if any courses were auto-detected
+              const hasAutoDetected = createdTasks.some(task => 
+                task.course !== 'General' && 
+                !parsedResponse.multipleTasks.find(spec => spec.title === task.title)?.course
+              );
+              const courseInfo = hasAutoDetected ? `\n🎯 *Some courses were auto-detected based on content*` : '';
+              
+              setChatMessages(prev => [
+                ...prev,
+                { 
+                  role: 'assistant', 
+                  content: `✅ Created ${createdCount} tasks successfully!\n\n${taskList}${courseInfo}` 
+                }
+              ]);
+              
+              toast({
+                title: `${createdCount} Tasks Created! 🎉`,
+                description: `Successfully added ${createdCount} new tasks.`
+              });
+            }, 500);
+          }
+          break;
+
+        case 'MULTI_ACTION':
+          if (parsedResponse.multiActions && Array.isArray(parsedResponse.multiActions)) {
+            let completedActions = 0;
+            const actionResults = [];
+            
+            // Execute each action sequentially
+            for (const actionSpec of parsedResponse.multiActions) {
+              try {
+                switch (actionSpec.action) {
+                  case 'CREATE_TASK':
+                    if (actionSpec.taskData && actionSpec.taskData.title) {
+                      const today = new Date();
+                      
+                      // Detect course intelligently if not specified
+                      let detectedCourse = actionSpec.taskData.course || 'General';
+                      if (!actionSpec.taskData.course || actionSpec.taskData.course === 'General') {
+                        // Use original query and task title/description for course detection
+                        const detectionQuery = `${originalQuery} ${actionSpec.taskData.title} ${actionSpec.taskData.description || ''}`.toLowerCase();
+                        const intelligentCourse = courseDetectionService.detectCourse(detectionQuery, courses);
+                        if (intelligentCourse) {
+                          detectedCourse = intelligentCourse;
+                        }
+                      }
+                      
+                      const newTask = {
+                        title: actionSpec.taskData.title,
+                        description: actionSpec.taskData.description || undefined,
+                        dueDate: actionSpec.taskData.dueDate || today.toISOString().split('T')[0],
+                        dueTime: actionSpec.taskData.dueTime || undefined,
+                        priority: (actionSpec.taskData.priority as "low" | "medium" | "high") || 'medium',
+                        status: 'pending' as const,
+                        course: detectedCourse,
+                        tags: actionSpec.taskData.tags || [],
+                        completed: false,
+                        starred: false
+                      };
+                      await addTask(newTask);
+                      actionResults.push(`✅ Created task: "${newTask.title}"`);
+                      completedActions++;
+                    }
+                    break;
+                    
+                  case 'UPDATE_TASK':
+                    if (actionSpec.taskData && actionSpec.taskData.taskId) {
+                      await updateTask(actionSpec.taskData.taskId, actionSpec.taskData);
+                      const task = tasks.find(t => t.id === actionSpec.taskData.taskId);
+                      actionResults.push(`✅ Updated task: "${task?.title}"`);
+                      completedActions++;
+                    }
+                    break;
+                    
+                  case 'DELETE_TASK':
+                    if (actionSpec.taskData && actionSpec.taskData.taskId) {
+                      const task = tasks.find(t => t.id === actionSpec.taskData.taskId);
+                      await deleteTask(actionSpec.taskData.taskId);
+                      actionResults.push(`✅ Deleted task: "${task?.title}"`);
+                      completedActions++;
+                    }
+                    break;
+                    
+                  case 'COMPLETE_TASK':
+                    if (actionSpec.taskData && actionSpec.taskData.taskId) {
+                      await toggleCompleted(actionSpec.taskData.taskId);
+                      const task = tasks.find(t => t.id === actionSpec.taskData.taskId);
+                      actionResults.push(`✅ Completed task: "${task?.title}"`);
+                      completedActions++;
+                    }
+                    break;
+                    
+                  case 'STAR_TASK':
+                    if (actionSpec.taskData && actionSpec.taskData.taskId) {
+                      await toggleStarred(actionSpec.taskData.taskId);
+                      const task = tasks.find(t => t.id === actionSpec.taskData.taskId);
+                      actionResults.push(`✅ Starred task: "${task?.title}"`);
+                      completedActions++;
+                    }
+                    break;
+                    
+                  case 'DELETE_MULTIPLE':
+                    if (actionSpec.criteria) {
+                      // Filter tasks based on criteria
+                      const matchingTasks = filterTasksByCriteria(tasks, actionSpec.criteria, 'DELETE_MULTIPLE');
+                      if (matchingTasks.length > 0) {
+                        const result = await bulkTasksApi({ operation: 'delete', taskIds: matchingTasks.map(t => t.id) });
+                        actionResults.push(`✅ Deleted ${result.affected} tasks`);
+                        await refreshTasks();
+                        completedActions++;
+                      } else {
+                        actionResults.push(`ℹ️ No tasks matched deletion criteria`);
+                      }
+                    }
+                    break;
+                    
+                  case 'COMPLETE_MULTIPLE':
+                    if (actionSpec.criteria) {
+                      // Filter tasks based on criteria
+                      const matchingTasks = filterTasksByCriteria(tasks, actionSpec.criteria, 'COMPLETE_MULTIPLE');
+                      if (matchingTasks.length > 0) {
+                        const result = await bulkTasksApi({ operation: 'complete', taskIds: matchingTasks.map(t => t.id) });
+                        actionResults.push(`✅ Completed ${result.affected} tasks`);
+                        await refreshTasks();
+                        completedActions++;
+                      } else {
+                        actionResults.push(`ℹ️ No tasks matched completion criteria`);
+                      }
+                    }
+                    break;
+                    
+                  default:
+                    actionResults.push(`❌ Unknown action: ${actionSpec.action}`);
+                }
+              } catch (error) {
+                console.error(`Error executing action ${actionSpec.action}:`, error);
+                actionResults.push(`❌ Failed to execute: ${actionSpec.action}`);
+              }
+            }
+            
+            setTimeout(() => {
+              const resultsSummary = actionResults.join('\n');
+              setChatMessages(prev => [
+                ...prev,
+                { 
+                  role: 'assistant', 
+                  content: `🔥 Multi-action completed! (${completedActions}/${parsedResponse.multiActions.length} actions successful)\n\n${resultsSummary}` 
+                }
+              ]);
+              
+              toast({
+                title: "Multi-Action Complete! 🚀",
+                description: `${completedActions} actions completed successfully.`
+              });
+            }, 500);
+          }
+          break;
+
         default:
           setChatMessages(prev => [
             ...prev,
@@ -1753,6 +2101,9 @@ Be extremely intelligent about understanding user intent. Handle typos, informal
         
         // Execute the simple action
         if (simpleFallback.action === 'CREATE_TASK' && simpleFallback.taskData?.title) {
+          // Detect course intelligently for fallback
+          const detectedCourse = courseDetectionService.detectCourse(originalQuery, courses) || 'General';
+          
           const newTask = {
             title: simpleFallback.taskData.title,
             description: '',
@@ -1760,17 +2111,62 @@ Be extremely intelligent about understanding user intent. Handle typos, informal
             dueTime: undefined,
             priority: 'medium' as const,
             status: 'pending' as const,
-            course: 'General',
+            course: detectedCourse,
             tags: [],
             completed: false,
             starred: false
           };
-          addTask(newTask);
+          await addTask(newTask);
           
           setTimeout(() => {
             toast({
               title: "Task Created! 🎉",
               description: `"${newTask.title}" has been added using fallback parsing.`
+            });
+          }, 500);
+        } else if (simpleFallback.action === 'CREATE_MULTIPLE_TASKS' && simpleFallback.multipleTasks) {
+          // Handle multiple task creation in fallback
+          let createdCount = 0;
+          const createdTasks = [];
+          
+          for (const taskSpec of simpleFallback.multipleTasks) {
+            if (taskSpec.title) {
+              // Detect course intelligently for fallback
+              const detectionQuery = `${originalQuery} ${taskSpec.title}`.toLowerCase();
+              const detectedCourse = courseDetectionService.detectCourse(detectionQuery, courses) || taskSpec.course || 'General';
+              
+              const newTask = {
+                title: taskSpec.title,
+                description: undefined,
+                dueDate: new Date().toISOString().split('T')[0],
+                dueTime: undefined,
+                priority: (taskSpec.priority as "low" | "medium" | "high") || 'medium',
+                status: 'pending' as const,
+                course: detectedCourse,
+                tags: [],
+                completed: false,
+                starred: false
+              };
+              
+              await addTask(newTask);
+              createdTasks.push(newTask);
+              createdCount++;
+            }
+          }
+          
+          setTimeout(() => {
+            const taskList = createdTasks.map(task => `• ${task.title}`).join('\n');
+            setChatMessages(prev => [
+              ...prev,
+              { 
+                role: 'assistant', 
+                content: `✅ Created ${createdCount} tasks using fallback parsing!\n\n${taskList}` 
+              }
+            ]);
+            
+            toast({
+              title: `${createdCount} Tasks Created! 🎉`,
+              description: `Successfully added ${createdCount} new tasks using fallback parsing.`
             });
           }, 500);
         }
@@ -1787,10 +2183,40 @@ Be extremely intelligent about understanding user intent. Handle typos, informal
   };
 
   // Simple fallback parsing for when AI completely fails
-  const trySimpleTaskParsing = (query: string): { action: string, taskData?: any, response: string } | null => {
+  const trySimpleTaskParsing = (query: string): { action: string, taskData?: any, multipleTasks?: any[], response: string } | null => {
     const lowerQuery = query.toLowerCase();
     
-    // Simple task creation
+    // Multiple task creation patterns
+    if (lowerQuery.includes('create') && (lowerQuery.includes('tasks:') || lowerQuery.includes('tasks for') || lowerQuery.includes('add tasks'))) {
+      // Try to extract multiple tasks from patterns like "create tasks: task1, task2, task3"
+      const taskListPattern = /(?:create tasks?[:]\s*|add tasks?[:]\s*|make tasks?[:]\s*)(.+)/i;
+      const match = query.match(taskListPattern);
+      
+      if (match && match[1]) {
+        // Split by common separators and clean up
+        const taskTitles = match[1]
+          .split(/[,;]|\sand\s|\sof\s|\sthen\s/)
+          .map(title => title.trim())
+          .filter(title => title.length > 2)
+          .slice(0, 10); // Limit to 10 tasks for safety
+        
+        if (taskTitles.length > 1) {
+          const multipleTasks = taskTitles.map(title => ({
+            title: title.replace(/^[-•]\s*/, ''), // Remove bullet points
+            priority: 'medium' as const,
+            course: 'General'
+          }));
+          
+          return {
+            action: 'CREATE_MULTIPLE_TASKS',
+            multipleTasks,
+            response: `Creating ${taskTitles.length} tasks using fallback parsing...`
+          };
+        }
+      }
+    }
+    
+    // Simple single task creation
     if (lowerQuery.includes('create') && (lowerQuery.includes('task') || lowerQuery.includes('todo'))) {
       const titleMatch = query.match(/create.*?(?:task|todo)[\s:]*(.+)/i);
       if (titleMatch && titleMatch[1]) {
@@ -2047,21 +2473,47 @@ Please provide a personalized response that considers our conversation history a
       ref={searchBarRef}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className={`fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 transition-all duration-300 ease-in-out ${
+      className={`fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 transition-all duration-200 ease-out ${
         isExpanded ? 'w-full max-w-xl px-6' : 'w-auto'
       }`}
     >
-      <div className={`bg-black/5 backdrop-blur-md border border-gray-200/30 rounded-2xl shadow-lg transition-all duration-300 ease-in-out ${
+      <div className={`bg-white/95 backdrop-blur-md border border-gray-200/50 rounded-2xl shadow-2xl transition-all duration-200 ease-out ${
         isExpanded ? 'p-2' : 'p-1'
       }`}>
         {!isExpanded ? (
-          // Collapsed state - small plus button
+          // Collapsed state - AI Assistant button with black theme
           <Button
             onClick={handleExpand}
-            variant="ghost"
-            className="rounded-full h-12 w-12 p-0 hover:bg-gray-100/50 transition-all duration-200"
+            className="rounded-full h-12 w-12 p-0 bg-black hover:bg-gray-800 transition-all duration-150 text-white shadow-lg hover:shadow-xl border-0"
           >
-            <Plus className="h-5 w-5 text-gray-500" />
+            <div className="relative">
+              <motion.div
+                animate={{ 
+                  rotate: [0, 3, -3, 0],
+                  scale: [1, 1.03, 1]
+                }}
+                transition={{ 
+                  duration: 2,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
+              >
+                <Bot className="h-7 w-6" />
+              </motion.div>
+              {/* Pulsing ring animation */}
+              <motion.div
+                className="absolute inset-0 rounded-full border-2 border-white"
+                animate={{ 
+                  scale: [1, 1.2, 1],
+                  opacity: [0.3, 0, 0.3]
+                }}
+                transition={{ 
+                  duration: 1.8,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
+              />
+            </div>
           </Button>
         ) : (
           // Expanded state - full search bar with chat interface
@@ -2070,14 +2522,12 @@ Please provide a personalized response that considers our conversation history a
             <AnimatePresence>
               {isChatModeActive ? (
                 <motion.div
-                  initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 20, scale: 0.95 }}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
                   transition={{ 
-                    type: "spring", 
-                    damping: 25, 
-                    stiffness: 300,
-                    duration: 0.3 
+                    duration: 0.15,
+                    ease: "easeOut"
                   }}
                   className="w-full"
                 >
@@ -2136,6 +2586,46 @@ Please provide a personalized response that considers our conversation history a
                     </div>
                   </div>
                   
+                  {/* Progress Indicator */}
+                  <AnimatePresence>
+                    {actionProgress.isActive && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -5 }}
+                        transition={{ duration: 0.2, ease: "easeOut" }}
+                        className="mb-2 px-2"
+                      >
+                        <div className="bg-black text-white rounded-2xl px-4 py-3 text-sm">
+                          <div className="flex items-center gap-3">
+                            <motion.div
+                              animate={{ rotate: 360 }}
+                              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                            >
+                              <Bot className="h-4 w-4" />
+                            </motion.div>
+                            <div className="flex-1">
+                              <div className="font-medium">{actionProgress.currentStep}</div>
+                              <div className="flex items-center mt-1">
+                                <div className="flex-1 bg-white/20 rounded-full h-1 mr-2">
+                                  <motion.div 
+                                    className="bg-white h-1 rounded-full"
+                                    initial={{ width: "0%" }}
+                                    animate={{ width: `${(actionProgress.currentStepIndex / actionProgress.totalSteps) * 100}%` }}
+                                    transition={{ duration: 0.2, ease: "easeOut" }}
+                                  />
+                                </div>
+                                <span className="text-xs opacity-75">
+                                  {actionProgress.currentStepIndex}/{actionProgress.totalSteps}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                  
                   {/* Chat Messages */}
                   <div 
                     ref={chatContainerRef}
@@ -2187,7 +2677,7 @@ Please provide a personalized response that considers our conversation history a
                     <Input
                       ref={inputRef}
                       type="text"
-                      placeholder={activeCommand === 'create' ? "What task would you like to create, update, or manage?" : "Ask follow-up question..."}
+                      placeholder={activeCommand === 'create' ? "Create tasks, update priorities, or manage assignments..." : "Ask questions about your tasks or course content..."}
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
                       className="border-0 bg-transparent placeholder-gray-400 text-gray-700 focus-visible:ring-0 focus-visible:ring-offset-0 h-auto p-0 text-sm flex-1"
@@ -2195,9 +2685,7 @@ Please provide a personalized response that considers our conversation history a
                     />
                     <Button
                       type="submit"
-                      variant="ghost"
-                      size="sm"
-                      className="rounded-full h-8 w-8 p-0 hover:bg-gray-100/50"
+                      className="rounded-full h-8 w-8 p-0 bg-black hover:bg-gray-800 text-white transition-colors"
                       disabled={isCreatingTask} // Disable submit button during task creation
                     >
                       {isCreatingTask ? (
@@ -2235,7 +2723,13 @@ Please provide a personalized response that considers our conversation history a
                       <Input
                         ref={inputRef}
                         type="text"
-                        placeholder={activeCommand ? "Enter your request..." : "Ask Janni to create tasks or events... (e.g., 'agent math homework tomorrow', 'agent class today at 6pm')"}
+                        placeholder={
+                          activeCommand === 'create' 
+                            ? "Create tasks... (e.g., 'study calculus exam tomorrow', 'finish web dev project')" 
+                            : activeCommand === 'ask'
+                              ? "Ask questions... (e.g., 'what tasks are due soon?', 'help with calculus concepts')"
+                              : "Ask AI Assistant... Type to select Agent or Ask mode"
+                        }
                         value={query}
                         onChange={handleInputChange}
                         onKeyDown={(e) => {
@@ -2252,7 +2746,7 @@ Please provide a personalized response that considers our conversation history a
                       {showCommandMenu && (
                         <div 
                           ref={commandMenuRef}
-                          className="absolute bottom-full left-0 mb-2 w-64 bg-background/90 backdrop-blur-2xl rounded-2xl shadow-xl border border-border/50 overflow-hidden z-50"
+                          className="absolute bottom-full left-0 mb-2 w-64 bg-background/90 backdrop-blur-md rounded-2xl shadow-xl border border-border/50 overflow-hidden z-50"
                         >
                           <div className="py-1">
                             {commands.map((command, index) => (
@@ -2260,18 +2754,20 @@ Please provide a personalized response that considers our conversation history a
                                 key={command.id}
                                 type="button"
                                 onClick={() => handleCommandSelect(command.id)}
-                                className={`w-full flex items-center gap-3 px-4 py-2 text-left rounded-xl ${
+                                className={`w-full flex items-center gap-3 px-4 py-2 text-left rounded-xl transition-colors ${
                                   index === selectedIndex 
-                                    ? 'bg-accent' 
-                                    : 'hover:bg-accent/50'
+                                    ? 'bg-black text-white' 
+                                    : 'hover:bg-gray-100'
                                 }`}
                               >
-                                <div className="text-gray-500">
-                                  {command.icon}
+                                <div className={index === selectedIndex ? "text-white" : "text-black"}>
+                                  {React.cloneElement(command.icon, {
+                                    className: `h-4 w-4 ${index === selectedIndex ? "text-white" : "text-black"}`
+                                  })}
                                 </div>
                                 <div>
-                                  <div className="font-medium text-gray-900 dark:text-gray-100">{command.label}</div>
-                                  <div className="text-xs text-gray-500 dark:text-gray-400">{command.description}</div>
+                                  <div className={`font-medium ${index === selectedIndex ? "text-white" : "text-gray-900"}`}>{command.label}</div>
+                                  <div className={`text-xs ${index === selectedIndex ? "text-gray-300" : "text-gray-500"}`}>{command.description}</div>
                                 </div>
                               </button>
                             ))}
@@ -2281,11 +2777,9 @@ Please provide a personalized response that considers our conversation history a
                     </div>
                     <Button
                       type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="rounded-full h-8 w-8 p-0 hover:bg-gray-100/50"
+                      className="rounded-full h-8 w-8 p-0 bg-black hover:bg-gray-800 text-white transition-colors"
                     >
-                      <Mic className="h-4 w-4 text-gray-500" />
+                      <Mic className="h-4 w-4" />
                     </Button>
                   </form>
                 </motion.div>
