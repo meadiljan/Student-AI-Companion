@@ -1,1 +1,1 @@
-# Welcome to your Dyad app
+# Student AI Companion
