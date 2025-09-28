@@ -1,3 +1,17 @@
 {
-  "tasks": []
+  "tasks": [
+    {
+      "id": "1759070663589",
+      "title": "Learn Chapter on Health Condition",
+      "description": "Focus on key concepts from your Art History chapter about health conditions in art. Take detailed notes. As requested, a web link for an image can be added here.",
+      "dueDate": "2025-09-28",
+      "dueTime": "09:00 PM",
+      "priority": "high",
+      "status": "pending",
+      "course": "art-history",
+      "tags": [],
+      "completed": false,
+      "starred": false
+    }
+  ]
 }
