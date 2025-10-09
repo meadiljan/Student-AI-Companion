@@ -1,29 +1,3 @@
 {
-  "tasks": [
-    {
-      "id": "1759941195374",
-      "title": "Enroll in Machine Learning Course",
-      "description": "Search for and enroll in a machine learning course by the end of the day. Consider starting with related foundational courses like Calculus I if you're new to machine learning.",
-      "dueDate": "2025-11-03",
-      "priority": "medium",
-      "status": "pending",
-      "course": "General",
-      "tags": [],
-      "completed": false,
-      "starred": false
-    },
-    {
-      "id": "1759941421647",
-      "title": "Research Machine Learning Course Pricing",
-      "description": "Investigate various machine learning courses available online, comparing their pricing models, course content, and provider reputation. Consider factors like course duration, level (beginner, advanced), and any additional resources or support provided.",
-      "dueDate": "2025-11-03",
-      "dueTime": "11:55 AM",
-      "priority": "medium",
-      "status": "pending",
-      "course": "General",
-      "tags": [],
-      "completed": false,
-      "starred": false
-    }
-  ]
+  "tasks": []
 }
