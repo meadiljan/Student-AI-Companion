@@ -7,8 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarIcon } from "lucide-react";
+import { format, isToday, isTomorrow, isPast, parseISO, isBefore } from "date-fns";
 import { 
   Plus, 
   Calendar, 
@@ -44,7 +44,7 @@ const Tasks = () => {
   const { courses } = useCourses();
   const [showNewTask, setShowNewTask] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedFilter, setSelectedFilter] = useState<"all" | "pending" | "completed" | "overdue" | "starred">("all");
+  const [selectedFilter, setSelectedFilter] = useState<"all" | "upcoming" | "completed" | "overdue" | "starred">("all");
   const [newTask, setNewTask] = useState({
     title: "",
     description: "",
@@ -95,6 +95,58 @@ const Tasks = () => {
   };
   
   const timeOptions = generateTimeOptions();
+
+  // Helper function to check if a task is overdue considering both date and time
+  const isTaskOverdue = (dueDate: string, dueTime?: string) => {
+    try {
+      const date = parseISO(dueDate);
+      const now = new Date();
+      
+      if (isToday(date)) {
+        // For today's tasks, check the time as well
+        if (dueTime) {
+          // Parse the time and combine with today's date
+          const timeMatch = dueTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+          if (timeMatch) {
+            let [, hours, minutes, period] = timeMatch;
+            let hour24 = parseInt(hours);
+            
+            // Convert to 24-hour format
+            if (period.toUpperCase() === 'PM' && hour24 !== 12) {
+              hour24 += 12;
+            } else if (period.toUpperCase() === 'AM' && hour24 === 12) {
+              hour24 = 0;
+            }
+            
+            const taskDateTime = new Date(date);
+            taskDateTime.setHours(hour24, parseInt(minutes), 0, 0);
+            
+            return isBefore(taskDateTime, now);
+          }
+        }
+        // If no time specified for today's task, it's not overdue
+        return false;
+      } else {
+        // For past dates (not today), it's overdue regardless of time
+        return isPast(date);
+      }
+    } catch {
+      return false;
+    }
+  };
+
+  // Helper function to get dynamic display status
+  const getDynamicStatus = (task: Task) => {
+    if (task.completed) {
+      return "completed";
+    }
+    
+    if (isTaskOverdue(task.dueDate, task.dueTime)) {
+      return "overdue";
+    }
+    
+    return "upcoming";
+  };
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -222,7 +274,7 @@ const Tasks = () => {
       dueDate: newTask.dueDate,
       dueTime: newTask.dueTime,
       priority: newTask.priority,
-      status: "pending" as const,
+      status: "in-progress" as const,
       course: newTask.course,
       tags: [],
       completed: false,
@@ -245,10 +297,11 @@ const Tasks = () => {
     const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          task.course.toLowerCase().includes(searchQuery.toLowerCase());
     
+    const dynamicStatus = getDynamicStatus(task);
     const matchesFilter = selectedFilter === "all" || 
-                         (selectedFilter === "pending" && task.status === "pending") ||
-                         (selectedFilter === "completed" && task.completed) ||
-                         (selectedFilter === "overdue" && task.status === "overdue") ||
+                         (selectedFilter === "upcoming" && dynamicStatus === "upcoming") ||
+                         (selectedFilter === "completed" && dynamicStatus === "completed") ||
+                         (selectedFilter === "overdue" && dynamicStatus === "overdue") ||
                          (selectedFilter === "starred" && task.starred);
     
     return matchesSearch && matchesFilter;
@@ -263,13 +316,13 @@ const Tasks = () => {
     }
   };
 
-  const getStatusBadge = (status: string, completed: boolean) => {
-    if (completed) return { color: "bg-green-100 text-green-700 border-green-200", text: "Completed" };
+  const getStatusBadge = (task: Task) => {
+    const dynamicStatus = getDynamicStatus(task);
     
-    switch (status) {
-      case "in-progress": return { color: "bg-blue-100 text-blue-700 border-blue-200", text: "In Progress" };
-      case "pending": return { color: "bg-gray-100 text-gray-700 border-gray-200", text: "Pending" };
+    switch (dynamicStatus) {
+      case "completed": return { color: "bg-green-100 text-green-700 border-green-200", text: "Completed" };
       case "overdue": return { color: "bg-red-100 text-red-700 border-red-200", text: "Overdue" };
+      case "upcoming": return { color: "bg-blue-100 text-blue-700 border-blue-200", text: "Upcoming" };
       default: return { color: "bg-gray-100 text-gray-700 border-gray-200", text: "Unknown" };
     }
   };
@@ -332,7 +385,7 @@ const Tasks = () => {
       setSelectedTask({ 
         ...selectedTask, 
         completed: !selectedTask.completed,
-        status: !selectedTask.completed ? "completed" : "pending"
+        status: !selectedTask.completed ? "completed" : "in-progress"
       });
     }
   };
@@ -397,7 +450,7 @@ const Tasks = () => {
           </div>
           
           <div className="flex items-center gap-2">
-            {["all", "pending", "completed", "overdue", "starred"].map((filter) => (
+            {["all", "upcoming", "completed", "overdue", "starred"].map((filter) => (
               <Button
                 key={filter}
                 variant={selectedFilter === filter ? "default" : "ghost"}
@@ -422,7 +475,7 @@ const Tasks = () => {
         <ScrollArea className="h-full">
           <div className="space-y-4">
             {filteredTasks.map((task) => {
-              const statusBadge = getStatusBadge(task.status, task.completed);
+              const statusBadge = getStatusBadge(task);
               
               return (
                 <Card 
@@ -780,53 +833,30 @@ const Tasks = () => {
               {/* Priority */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">Priority</label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full h-12 justify-between text-left font-normal rounded-2xl border-gray-200 bg-white/80 backdrop-blur-sm hover:bg-white/90 focus:ring-2 focus:ring-black focus:border-transparent"
+                <div className="flex gap-2">
+                  {["low", "medium", "high"].map((priorityLevel) => (
+                    <button
+                      key={priorityLevel}
+                      onClick={() => setNewTask(prev => ({ ...prev, priority: priorityLevel as any }))}
+                      className={cn(
+                        "flex-1 flex items-center justify-center px-4 py-3 rounded-2xl border transition-colors",
+                        newTask.priority === priorityLevel 
+                          ? "border-black bg-black text-white" 
+                          : "border-gray-200 bg-white hover:bg-gray-50"
+                      )}
                     >
-                      <div className="flex items-center">
-                        <div className={cn(
-                          "w-3 h-3 rounded-full mr-2",
-                          newTask.priority === "high" && "bg-red-500",
-                          newTask.priority === "medium" && "bg-yellow-500",
-                          newTask.priority === "low" && "bg-green-500"
-                        )} />
-                        <span className="capitalize">
-                          {newTask.priority === "high" && "High Priority"}
-                          {newTask.priority === "medium" && "Medium Priority"}
-                          {newTask.priority === "low" && "Low Priority"}
-                        </span>
-                      </div>
-                      <ChevronDown className="h-4 w-4 text-gray-500" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-56 p-0 bg-white/95 backdrop-blur-xl border border-white/20 rounded-3xl shadow-2xl" align="start">
-                    <div className="p-2">
-                      {["high", "medium", "low"].map((priority) => (
-                        <button
-                          key={priority}
-                          onClick={() => {
-                            setNewTask(prev => ({ ...prev, priority: priority as any }));
-                          }}
-                          className={cn(
-                            "w-full flex items-center px-3 py-2 rounded-2xl text-left hover:bg-gray-100 transition-colors",
-                            newTask.priority === priority && "bg-black text-white hover:bg-gray-800"
-                          )}
-                        >
-                          <div className={cn(
-                            "w-3 h-3 rounded-full mr-3",
-                            priority === "high" && "bg-red-500",
-                            priority === "medium" && "bg-yellow-500",
-                            priority === "low" && "bg-green-500"
-                          )} />
-                          <span className="capitalize">{priority} Priority</span>
-                        </button>
-                      ))}
-                    </div>
-                  </PopoverContent>
-                </Popover>
+                      <div className={cn(
+                        "w-3 h-3 rounded-full mr-2",
+                        priorityLevel === "high" && "bg-red-500",
+                        priorityLevel === "medium" && "bg-yellow-500",
+                        priorityLevel === "low" && "bg-green-500"
+                      )} />
+                      <span className="capitalize">
+                        {priorityLevel} Priority
+                      </span>
+                    </button>
+                  ))}
+                </div>
               </div>
               
               {/* Action Buttons */}
