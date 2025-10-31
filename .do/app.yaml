@@ -29,13 +29,13 @@ services:
       repo: meadiljan/Student-AI-Companion
       branch: main
       deploy_on_push: true
-    build_command: npm ci && npm run build
+    build_command: npm install && npm run build
     environment_slug: node-js
     output_dir: dist
     index_document: index.html
     error_document: index.html
     env:
       - key: VITE_API_URL
-        value: ${backend.PUBLIC_URL}/api
+        value: https://urchin-app-qch6j.ondigitalocean.app/api
     routes:
       - path: /

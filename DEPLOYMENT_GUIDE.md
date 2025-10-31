@@ -138,10 +138,17 @@ Output Directory: dist
 ```
 
 #### 4.3 Frontend Environment Variables
-Create a `.env.production` file in your frontend directory:
-```env
+In your DigitalOcean frontend service, add this environment variable:
+```
 VITE_API_URL=https://your-backend-url.ondigitalocean.app/api
 ```
+
+**For your current deployment:**
+```
+VITE_API_URL=https://urchin-app-qch6j.ondigitalocean.app/api
+```
+
+> **Important**: Replace `your-backend-url` with your actual backend URL from DigitalOcean.
 
 ### Step 5: Update Your Code for Production
 

@@ -1,8 +1,8 @@
 import type { Task } from '@/contexts/TasksContext';
+import { API_BASE_URL } from '@/config/api';
 
-// Use environment override when provided (VITE_AGENT_API_URL).
-// Default to a relative '/api' path so it works in dev and production (proxy or reverse proxy).
-const BASE_URL = (import.meta as any).env?.VITE_AGENT_API_URL || '/api';
+// Use the centralized API configuration
+const BASE_URL = API_BASE_URL;
 
 export type ListQuery = Partial<{
   course: string;
