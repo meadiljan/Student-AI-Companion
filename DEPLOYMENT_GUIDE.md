@@ -278,7 +278,64 @@ No manual configuration needed!
 - Database (if upgraded): ~$15/month
 - **Total**: ~$30/month
 
-## 🔐 Security Best Practices
+## � Troubleshooting
+
+### Common Issues and Solutions
+
+#### 1. Frontend Shows Blank White Screen
+**Problem**: Frontend deploys successfully but shows blank white screen in production.
+
+**Solution**: This was caused by complex Vite configuration. **Already Fixed!** ✅
+
+The Vite configuration has been simplified to resolve React production build issues:
+- Removed complex manual chunking that was causing conflicts
+- Simplified to use safe, basic chunking strategy
+- Removed problematic `dyadComponentTagger` plugin from production builds
+
+**If you still see issues**:
+1. Check browser console for JavaScript errors
+2. Verify API endpoints are accessible
+3. Ensure environment variables are set correctly
+
+#### 2. Build Dependency Errors
+**Problem**: Error about TypeScript dependencies during build.
+
+**Solution**: **Already Fixed!** ✅
+- TypeScript and @types/node moved to `dependencies` (not devDependencies)
+- Added `.npmrc` file for proper dependency resolution
+
+#### 3. API Connection Issues
+**Problem**: Frontend can't connect to backend API.
+
+**Solutions**:
+1. Check CORS configuration in backend
+2. Verify API URL environment variable
+3. Ensure backend service is running and healthy
+
+#### 4. Build Timeouts
+**Problem**: Build process times out on DigitalOcean.
+
+**Solutions**:
+1. Optimize package.json dependencies
+2. Use npm instead of pnpm for DigitalOcean builds
+3. Consider using cache optimization
+
+#### 5. Memory Issues During Build
+**Problem**: Build fails due to memory constraints.
+
+**Solutions**:
+1. Increase instance size temporarily for builds
+2. Optimize bundle size and chunks
+3. Remove unnecessary dependencies
+
+### 🔍 Debugging Tips
+
+1. **Check Build Logs**: Always review both frontend and backend build logs
+2. **Runtime Logs**: Monitor application logs after deployment
+3. **Environment Variables**: Verify all required environment variables are set
+4. **Health Checks**: Use DigitalOcean health checks to monitor service status
+
+## �🔐 Security Best Practices
 
 1. **Environment Variables**: Never commit sensitive data to repository
 2. **CORS Configuration**: Restrict to your frontend domain only
