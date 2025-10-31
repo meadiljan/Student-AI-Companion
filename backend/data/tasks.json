@@ -1,3 +1,16 @@
 {
-  "tasks": []
+  "tasks": [
+    {
+      "id": "1761921348508",
+      "title": "create a task of hisotry essay topic learn today",
+      "description": "Plan and develop the specified deliverable or solution.",
+      "dueDate": "2025-10-31",
+      "priority": "medium",
+      "status": "pending",
+      "course": "General",
+      "tags": [],
+      "completed": false,
+      "starred": true
+    }
+  ]
 }

@@ -4,14 +4,14 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 
 export default defineConfig(() => ({
-  // Proxy API requests during development to the backend running on localhost:8787
+  // Proxy API requests during development to the backend running on localhost:3001
   // This allows the frontend to use a relative `/api` base path in both dev and prod.
   server: {
     host: "::",
-    port: 8080,
+    port: 5173, // Use default Vite port
     proxy: {
       '/api': {
-        target: 'http://localhost:8787',
+        target: 'http://localhost:3001',
         changeOrigin: true,
         secure: false,
         rewrite: (path) => path.replace(/^\/api/, '/api')
