@@ -7,8 +7,8 @@ services:
       repo: meadiljan/Student-AI-Companion
       branch: main
       deploy_on_push: true
-    run_command: npm start
-    build_command: npm install && npm run build
+    run_command: node dist/index.js
+    build_command: npm install --production=false && npm run build
     environment_slug: node-js
     instance_count: 1
     instance_size_slug: basic-xxs
@@ -29,7 +29,7 @@ services:
       repo: meadiljan/Student-AI-Companion
       branch: main
       deploy_on_push: true
-    build_command: npm install && npm run build
+    build_command: npm ci && npm run build
     environment_slug: node-js
     output_dir: dist
     index_document: index.html
