@@ -30,95 +30,19 @@ interface TasksContextType {
 
 const TasksContext = createContext<TasksContextType | undefined>(undefined);
 
-const initialTasks: Task[] = [
-  {
-    id: "1",
-    title: "Typography Research Paper",
-    description: "Complete research on modern typography trends and their impact on digital design",
-    dueDate: "2025-09-15",
-    dueTime: "10:30 AM",
-    priority: "high",
-    status: "in-progress",
-    course: "Design",
-    tags: ["research", "typography", "design"],
-    completed: false,
-    starred: true,
-  },
-  {
-    id: "2",
-    title: "Inclusive Design Case Study",
-    description: "Analyze accessibility features in popular applications",
-    dueDate: "2025-09-16",
-    dueTime: "2:00 PM",
-    priority: "medium",
-    status: "pending",
-    course: "UX Design",
-    tags: ["accessibility", "case-study"],
-    completed: false,
-    starred: false,
-  },
-  {
-    id: "3",
-    title: "Drawing Portfolio",
-    description: "Complete 10 digital illustrations for portfolio submission",
-    dueDate: "2025-09-23",
-    dueTime: "11:59 PM",
-    priority: "high",
-    status: "pending",
-    course: "Digital Art",
-    tags: ["portfolio", "illustration"],
-    completed: false,
-    starred: false,
-  },
-  {
-    id: "4",
-    title: "History Essay",
-    description: "Write essay on Renaissance art influence",
-    dueDate: "2025-09-13",
-    dueTime: "5:00 PM",
-    priority: "medium",
-    status: "overdue",
-    course: "Art History",
-    tags: ["essay", "history"],
-    completed: false,
-    starred: false,
-  },
-  {
-    id: "5",
-    title: "Math Problem Set",
-    description: "Complete calculus problems 1-20",
-    dueDate: "2025-09-20",
-    dueTime: "9:00 AM",
-    priority: "low",
-    status: "pending",
-    course: "Mathematics",
-    tags: ["math", "calculus"],
-    completed: true,
-    starred: false,
-  },
-];
-
 export const TasksProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [tasks, setTasks] = useState<Task[]>([]);
 
-  // Hydrate from backend; seed with initialTasks if empty
+  // Hydrate from backend - no more automatic seeding
   useEffect(() => {
     (async () => {
       try {
-        let serverTasks = await listTasksApi();
-        if (serverTasks.length === 0) {
-          for (const t of initialTasks) {
-            // create without id so server assigns; include fields
-            const { id, ...payload } = t;
-            await createTaskApi(payload as Omit<Task, 'id'>);
-          }
-          serverTasks = await listTasksApi();
-        }
+        const serverTasks = await listTasksApi();
         setTasks(serverTasks);
       } catch (e) {
-        // Fallback to local initial tasks if server not available
-        console.error("Failed to hydrate tasks from backend; using local seed", e);
-        setTasks(initialTasks);
+        // If server is not available, start with empty tasks
+        console.error("Failed to hydrate tasks from backend; starting with empty list", e);
+        setTasks([]);
       }
     })();
   }, []);
