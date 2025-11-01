@@ -297,7 +297,7 @@ No manual configuration needed!
 The Vite configuration has been simplified to resolve React production build issues:
 - Removed complex manual chunking that was causing conflicts
 - Simplified to use safe, basic chunking strategy
-- Removed problematic `dyadComponentTagger` plugin from production builds
+- Removed problematic component tagger plugin from production builds
 
 **If you still see issues**:
 1. Check browser console for JavaScript errors

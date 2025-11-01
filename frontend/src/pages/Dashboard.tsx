@@ -4,7 +4,6 @@ import OverviewCards from "@/components/OverviewCards";
 import UpcomingEvents from "@/components/UpcomingEvents";
 import TasksList from "@/components/TasksList";
 import ActiveHoursHistogram from "@/components/ActiveHoursHistogram";
-import { MadeWithDyad } from "@/components/made-with-dyad";
 import { useUser } from "@/contexts/UserContext";
 
 const Dashboard = () => {
@@ -25,7 +24,6 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
-      <MadeWithDyad />
     </div>
   );
 };
