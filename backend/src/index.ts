@@ -19,11 +19,14 @@ const corsOptions = {
         // Allow requests with no origin (like mobile apps or Postman)
         if (!origin) return callback(null, true);
         
-        // Allow same-domain requests and DigitalOcean URLs
+        // Allow same-domain requests, DigitalOcean URLs, and majauto.app domains
         const allowedOrigins = [
           process.env.CORS_ORIGIN,
           /.*\.ondigitalocean\.app$/,
-          /.*\.digitaloceanspaces\.com$/
+          /.*\.digitaloceanspaces\.com$/,
+          /.*\.majauto\.app$/,
+          'https://majauto.app',
+          'http://majauto.app'
         ].filter(Boolean);
         
         const isAllowed = allowedOrigins.some(allowed => {
