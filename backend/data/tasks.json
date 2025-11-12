@@ -1,3 +1,16 @@
 {
-  "tasks": []
+  "tasks": [
+    {
+      "id": "1762603361258",
+      "title": "Learn new things regularly",
+      "description": "Establish a routine for continuous personal and professional development. This could involve dedicating time each week to exploring new topics, reading educational materials, practicing new skills, or engaging with online learning platforms to broaden knowledge and stay updated.",
+      "dueDate": "2025-11-08",
+      "priority": "medium",
+      "status": "pending",
+      "course": "Web Development",
+      "tags": [],
+      "completed": false,
+      "starred": false
+    }
+  ]
 }

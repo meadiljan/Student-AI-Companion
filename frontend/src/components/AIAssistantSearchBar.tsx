@@ -1,9 +1,9 @@
-import { Plus, Mic, Bot, X, CheckCircle, Clock, Calendar, Flag, Loader2 } from "lucide-react";
+import { Plus, Mic, Bot, X, CheckCircle, Clock, Calendar, Flag, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState, useRef, useEffect } from "react";
 import React from "react";
-import { eventManager, SettingsChangeListener } from "@/utils/eventManager";
+import { eventManager, SettingsChangeListener, AIAssistantTriggerListener } from "@/utils/eventManager";
 import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -1054,6 +1054,79 @@ User message: "${text.replace(/"/g, '\"')}"
       eventManager.removeSettingsChangeListener(handleSettingsChange);
     };
   }, []);
+
+  // Listen for AI assistant trigger events from other components
+  useEffect(() => {
+    const handleAIAssistantTrigger: AIAssistantTriggerListener = (triggerQuery) => {
+      // Set the query and expand the assistant
+      setQuery(triggerQuery);
+      setIsExpanded(true);
+      
+      // Process the query using the same logic as handleSubmit
+      setTimeout(async () => {
+        if (!triggerQuery.trim()) return;
+
+        const queryToProcess = triggerQuery.trim();
+
+        // IMMEDIATE FEEDBACK: Show user query and loading state right away
+        setChatMessages(prev => [
+          ...prev,
+          { role: 'user', content: queryToProcess },
+          { role: 'assistant', content: 'Thinking...' }
+        ]);
+        
+        // Clear the query input
+        setQuery('');
+
+        try {
+          // Now do intent detection in the background
+          const effectiveCommand = await determineIntentViaLLM(queryToProcess);
+          const { intent } = effectiveCommand as any;
+
+          // Remove the "Thinking..." message
+          setChatMessages(prev => {
+            const newMessages = [...prev];
+            newMessages.pop(); // Remove "Thinking..." message
+            return newMessages;
+          });
+
+          // Check if it's a command
+          if (intent === 'create') {
+            // Handle Agent mode with AI-powered understanding
+            callAIModelForAgent(queryToProcess);
+          } else if (intent === 'ask') {
+            // Handle ask command - Call AI API
+            callAIModel(queryToProcess);
+          } else {
+            // Handle legacy event creation or unknown intent
+            handleLegacyEventCreation(queryToProcess);
+          }
+
+        } catch (error) {
+          console.error('Error processing triggered query:', error);
+          
+          // Remove loading message and show error
+          setChatMessages(prev => {
+            const newMessages = [...prev];
+            if (newMessages[newMessages.length - 1]?.content === 'Thinking...') {
+              newMessages.pop(); // Remove "Thinking..." message
+            }
+            newMessages.push({ 
+              role: 'assistant', 
+              content: 'Sorry, I encountered an error processing your request. Please try again.' 
+            });
+            return newMessages;
+          });
+        }
+      }, 100); // Small delay to ensure the component is fully expanded
+    };
+
+    eventManager.addAIAssistantTriggerListener(handleAIAssistantTrigger);
+
+    return () => {
+      eventManager.removeAIAssistantTriggerListener(handleAIAssistantTrigger);
+    };
+  }, []); // No dependencies needed since we're not using external variables inside
 
   // Helper function to filter tasks based on criteria
   const filterTasksByCriteria = (tasks: any[], criteria: any, action: string) => {
@@ -2681,16 +2754,16 @@ Be extremely intelligent about understanding user intent. Handle typos, informal
             <div className="relative">
               <motion.div
                 animate={{ 
-                  rotate: [0, 3, -3, 0],
+                  rotate: [0, 360],
                   scale: [1, 1.03, 1]
                 }}
                 transition={{ 
-                  duration: 2,
+                  duration: 8,
                   repeat: Infinity,
-                  ease: "easeInOut"
+                  ease: "linear"
                 }}
               >
-                <Bot className="h-7 w-6" />
+                <Sparkles className="h-7 w-6" />
               </motion.div>
               {/* Pulsing ring animation */}
               <motion.div
@@ -2786,7 +2859,7 @@ Be extremely intelligent about understanding user intent. Handle typos, informal
                               animate={{ rotate: 360 }}
                               transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                             >
-                              <Bot className="h-4 w-4" />
+                              <Sparkles className="h-4 w-4" />
                             </motion.div>
                             <div className="flex-1">
                               <div className="font-medium">{actionProgress.currentStep}</div>

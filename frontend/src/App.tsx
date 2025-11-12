@@ -21,6 +21,7 @@ const CourseDetails = lazy(() => import("./pages/CourseDetails"));
 const LecturePage = lazy(() => import("./pages/LecturePage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Notes = lazy(() => import("./pages/Notes"));
+const Assistant = lazy(() => import("./pages/Assistant"));
 
 const queryClient = new QueryClient();
 
@@ -80,6 +81,11 @@ const App = () => (
                     <Route path="/notes" element={
                       <Suspense fallback={<PageLoader />}>
                         <Notes />
+                      </Suspense>
+                    } />
+                    <Route path="/assistant" element={
+                      <Suspense fallback={<PageLoader />}>
+                        <Assistant />
                       </Suspense>
                     } />
                     <Route path="*" element={

@@ -12,9 +12,13 @@ type EventListener = (event: Omit<CalendarEvent, 'id'>) => void;
 // Settings change listener type
 type SettingsChangeListener = (settings: { selectedModel: string }) => void;
 
+// AI Assistant trigger listener type
+type AIAssistantTriggerListener = (query: string) => void;
+
 class EventManager {
   private listeners: EventListener[] = [];
   private settingsChangeListeners: SettingsChangeListener[] = [];
+  private aiAssistantTriggerListeners: AIAssistantTriggerListener[] = [];
 
   // Calendar event methods
   addListener(listener: EventListener) {
@@ -42,7 +46,20 @@ class EventManager {
   notifySettingsChange(settings: { selectedModel: string }) {
     this.settingsChangeListeners.forEach(listener => listener(settings));
   }
+
+  // AI Assistant trigger methods
+  addAIAssistantTriggerListener(listener: AIAssistantTriggerListener) {
+    this.aiAssistantTriggerListeners.push(listener);
+  }
+
+  removeAIAssistantTriggerListener(listener: AIAssistantTriggerListener) {
+    this.aiAssistantTriggerListeners = this.aiAssistantTriggerListeners.filter(l => l !== listener);
+  }
+
+  triggerAIAssistant(query: string) {
+    this.aiAssistantTriggerListeners.forEach(listener => listener(query));
+  }
 }
 
 export const eventManager = new EventManager();
-export type { CalendarEvent, EventListener, SettingsChangeListener };
+export type { CalendarEvent, EventListener, SettingsChangeListener, AIAssistantTriggerListener };

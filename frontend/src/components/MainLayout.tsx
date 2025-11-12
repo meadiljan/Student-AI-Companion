@@ -23,6 +23,7 @@ import {
   ChevronDown,
   X
 } from "lucide-react";
+import { Google, OpenAI, Groq } from '@lobehub/icons';
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -125,6 +126,19 @@ const MainLayout = () => {
     setUserAvatar(user.avatar);
   }, [user]);
 
+  // Load API keys on component mount
+  React.useEffect(() => {
+    const savedApiKeys = localStorage.getItem("aiApiKeys");
+    if (savedApiKeys) {
+      try {
+        const parsedKeys = JSON.parse(savedApiKeys);
+        setApiKeys(parsedKeys);
+      } catch (error) {
+        console.error("Error loading saved API keys:", error);
+      }
+    }
+  }, []);
+
   // State for various settings
   const [notifications, setNotifications] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
@@ -133,7 +147,11 @@ const MainLayout = () => {
   
   // AI Integration settings
   const [selectedModel, setSelectedModel] = useState("gemini-2.5-pro");
-  const [apiKey, setApiKey] = useState("");
+  const [apiKeys, setApiKeys] = useState<{[key: string]: string}>({
+    google: "",
+    openai: "",
+    groq: ""
+  });
   const [testStatus, setTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
   const [testMessage, setTestMessage] = useState("");
 
@@ -146,6 +164,27 @@ const MainLayout = () => {
   const languageDropdownRef = useRef<HTMLDivElement>(null);
   const timezoneDropdownRef = useRef<HTMLDivElement>(null);
   const modelDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Helper function to get current provider and API key
+  const getCurrentProvider = () => {
+    if (selectedModel.includes('gemini')) return 'google';
+    if (selectedModel.includes('gpt')) return 'openai';
+    if (selectedModel.includes('llama')) return 'groq';
+    return 'google'; // default
+  };
+
+  const getCurrentApiKey = () => {
+    const provider = getCurrentProvider();
+    return apiKeys[provider] || "";
+  };
+
+  const updateCurrentApiKey = (value: string) => {
+    const provider = getCurrentProvider();
+    setApiKeys(prev => ({
+      ...prev,
+      [provider]: value
+    }));
+  };
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -178,10 +217,15 @@ const MainLayout = () => {
   };
 
   const openSettings = () => {
-    // Load API key when opening settings
-    const savedApiKey = localStorage.getItem("aiApiKey");
-    if (savedApiKey) {
-      setApiKey(savedApiKey);
+    // Load API keys when opening settings
+    const savedApiKeys = localStorage.getItem("aiApiKeys");
+    if (savedApiKeys) {
+      try {
+        const parsedKeys = JSON.parse(savedApiKeys);
+        setApiKeys(parsedKeys);
+      } catch (error) {
+        console.error("Error parsing saved API keys:", error);
+      }
     }
     
     setIsSettingsModalOpen(true);
@@ -189,12 +233,27 @@ const MainLayout = () => {
   };
 
   const handleTestConnection = async () => {
-    if (!apiKey) {
+    // Get the current provider key based on selected model
+    let currentProvider = "";
+    let currentApiKey = "";
+    
+    if (selectedModel.includes('gemini')) {
+      currentProvider = "google";
+      currentApiKey = apiKeys.google;
+    } else if (selectedModel.includes('gpt')) {
+      currentProvider = "openai";
+      currentApiKey = apiKeys.openai;
+    } else if (selectedModel.includes('llama')) {
+      currentProvider = "groq";
+      currentApiKey = apiKeys.groq;
+    }
+
+    if (!currentApiKey) {
       setTestStatus("error");
-      setTestMessage("API Key is required");
+      setTestMessage(`API Key is required for ${currentProvider}`);
       toast({
         title: "API Key Required",
-        description: "Please enter your API key to test the connection.",
+        description: `Please enter your ${currentProvider} API key to test the connection.`,
         variant: "destructive"
       });
       return;
@@ -208,40 +267,18 @@ const MainLayout = () => {
       let isValid = false;
       let message = "";
       
-      if (selectedModel === "gemini-2.5-pro" || selectedModel === "gemini-2.5-flash") {
+      if (selectedModel.includes('gemini')) {
         // Test Google Gemini API
-        isValid = await testGeminiAPI(apiKey);
-        // Find the model label for display
-        let modelLabel = "";
-        for (const option of aiModelOptions) {
-          if (option.subOptions) {
-            const subOption = option.subOptions.find(sub => sub.value === selectedModel);
-            if (subOption) {
-              modelLabel = `${option.label} ${subOption.label}`;
-              break;
-            }
-          }
-        }
-        message = isValid ? `Google Gemini (${modelLabel}) connection successful!` : `Failed to connect to Google Gemini (${modelLabel})`;
-      } else if (selectedModel === "gpt-4") {
+        isValid = await testGeminiAPI(currentApiKey);
+        message = isValid ? `Google Gemini connection successful!` : `Failed to connect to Google Gemini`;
+      } else if (selectedModel.includes('gpt')) {
         // Test OpenAI API
-        isValid = await testOpenAIAPI(apiKey);
+        isValid = await testOpenAIAPI(currentApiKey);
         message = isValid ? "OpenAI connection successful!" : "Failed to connect to OpenAI";
-      } else if (selectedModel === "meta-llama/llama-4-maverick-17b-128e-instruct" || selectedModel === "meta-llama/llama-4-scout-17b-16e-instruct") {
+      } else if (selectedModel.includes('llama')) {
         // Test Groq API
-        isValid = await testGroqAPI(apiKey);
-        // Find the model label for display
-        let modelLabel = "";
-        for (const option of aiModelOptions) {
-          if (option.subOptions) {
-            const subOption = option.subOptions.find(sub => sub.value === selectedModel);
-            if (subOption) {
-              modelLabel = `${option.label} ${subOption.label}`;
-              break;
-            }
-          }
-        }
-        message = isValid ? `Groq (${modelLabel}) connection successful!` : `Failed to connect to Groq (${modelLabel})`;
+        isValid = await testGroqAPI(currentApiKey);
+        message = isValid ? `Groq connection successful!` : `Failed to connect to Groq`;
       } else {
         // For other models, simulate a test
         // In a real implementation, you would add actual tests for each model
@@ -358,7 +395,11 @@ const MainLayout = () => {
       timezone,
       ai: {
         selectedModel,
-        apiKey: apiKey ? "********" : "" // Don't save actual API key in localStorage for security
+        apiKeysStatus: {
+          google: apiKeys.google ? "********" : "",
+          openai: apiKeys.openai ? "********" : "",
+          groq: apiKeys.groq ? "********" : ""
+        }
       },
       userProfile: {
         name: userName,
@@ -367,12 +408,8 @@ const MainLayout = () => {
       }
     }));
     
-    // Save API key separately in localStorage (in a real app, this should be more secure)
-    if (apiKey) {
-      localStorage.setItem("aiApiKey", apiKey);
-    } else {
-      localStorage.removeItem("aiApiKey");
-    }
+    // Save API keys separately in localStorage (in a real app, this should be more secure)
+    localStorage.setItem("aiApiKeys", JSON.stringify(apiKeys));
     
     // Notify AI assistant about settings change
     eventManager.notifySettingsChange({ selectedModel });
@@ -398,7 +435,11 @@ const MainLayout = () => {
     setLanguage("en");
     setTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone);
     setSelectedModel("gemini-2.5-pro");
-    setApiKey("");
+    setApiKeys({
+      google: "",
+      openai: "",
+      groq: ""
+    });
     
     // Reset user information to default
     setUserName(user.name);
@@ -419,14 +460,8 @@ const MainLayout = () => {
     }
   }, [isMobile]);
 
-  // Load API key from localStorage on component mount
+  // Load other settings from localStorage on component mount
   React.useEffect(() => {
-    const savedApiKey = localStorage.getItem("aiApiKey");
-    if (savedApiKey) {
-      setApiKey(savedApiKey);
-    }
-    
-    // Load other settings
     const savedSettings = localStorage.getItem("appSettings");
     if (savedSettings) {
       try {
@@ -440,13 +475,13 @@ const MainLayout = () => {
     }
   }, []);
 
-  // Reset test status when API key changes
+  // Reset test status when API keys change
   React.useEffect(() => {
     if (testStatus !== "idle") {
       setTestStatus("idle");
       setTestMessage("");
     }
-  }, [apiKey]);
+  }, [apiKeys]);
 
   return (
     <div className="flex min-h-screen bg-background p-4">
@@ -860,165 +895,171 @@ const MainLayout = () => {
                       <CardTitle>AI Integration</CardTitle>
                       <CardDescription>Configure AI services and API keys</CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-6">
-                      <div className="space-y-2">
-                        <Label>AI Model</Label>
-                        <div className="relative" ref={modelDropdownRef}>
-                          <button
-                            type="button"
-                            onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
-                            className="w-full rounded-2xl border border-gray-300 bg-white focus:ring-2 focus:ring-black focus:border-transparent py-2 px-3 text-sm text-left flex items-center justify-between"
-                          >
-                            <span>
-                              {(() => {
-                                // Find the selected model label
-                                for (const option of aiModelOptions) {
-                                  if (option.value === selectedModel) {
-                                    return option.label;
-                                  }
-                                  if (option.subOptions) {
-                                    const subOption = option.subOptions.find(sub => sub.value === selectedModel);
-                                    if (subOption) {
-                                      return `${option.label} ${subOption.label}`;
-                                    }
-                                  }
-                                }
-                                return "Select AI model";
-                              })()}
-                            </span>
-                            <ChevronDown className="h-4 w-4 text-gray-500" />
-                          </button>
-                          
-                          {isModelDropdownOpen && (
-                            <div className="absolute top-full left-0 mt-1 w-full rounded-2xl border border-gray-200 bg-white shadow-lg max-h-48 overflow-y-auto scrollbar-hide z-[200]">
-                              {aiModelOptions.map((option) => (
-                                <div key={option.value} className="relative">
-                                  {option.subOptions ? (
-                                    // Parent option with sub-options
-                                    <div className="w-full group">
-                                      <button
-                                        type="button"
-                                        className="w-full py-2 px-3 text-sm text-left hover:bg-gray-50 rounded-xl cursor-pointer flex items-center justify-between"
-                                      >
-                                        <span>{option.label}</span>
-                                        <ChevronDown className="h-4 w-4 text-gray-500 transition-transform group-hover:rotate-180" />
-                                      </button>
-                                      {/* Submenu that appears below with indentation when hovering */}
-                                      <div className="w-full hidden group-hover:block bg-gray-50 rounded-b-xl">
-                                        <div className="py-1 border-t border-gray-200 ml-4 mr-2">
-                                          {option.subOptions.map((subOption) => (
-                                            <button
-                                              key={subOption.value}
-                                              type="button"
-                                              onClick={() => {
-                                                setSelectedModel(subOption.value);
-                                                setIsModelDropdownOpen(false);
-                                              }}
-                                              className={`w-full py-2 px-3 text-sm text-left hover:bg-gray-100 rounded-lg cursor-pointer flex items-center justify-between ${
-                                                selectedModel === subOption.value ? "bg-gray-200" : ""
-                                              }`}
-                                            >
-                                              <span>{subOption.label}</span>
-                                              {selectedModel === subOption.value && (
-                                                <Check className="h-4 w-4 text-gray-500" />
-                                              )}
-                                            </button>
-                                          ))}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    // Regular option without sub-options
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setSelectedModel(option.value);
-                                        setIsModelDropdownOpen(false);
-                                      }}
-                                      className={`w-full py-2 px-3 text-sm text-left hover:bg-gray-50 rounded-xl cursor-pointer flex items-center justify-between ${
-                                        selectedModel === option.value ? "bg-gray-100" : ""
-                                      }`}
-                                    >
-                                      <span>{option.label}</span>
-                                      {selectedModel === option.value && (
-                                        <Check className="h-4 w-4 text-gray-500" />
-                                      )}
-                                    </button>
-                                  )}
-                                </div>
-                              ))}
+                    <CardContent>
+                      {/* Two-column layout */}
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        
+                        {/* Left Column - Model Providers */}
+                        <div className="space-y-4">
+                          <div>
+                            <Label className="text-base font-semibold">Model Providers</Label>
+                            <p className="text-sm text-muted-foreground">Choose your preferred AI model</p>
+                          </div>
+                        <div className="space-y-3">
+                          {/* Google Gemini Provider */}
+                          <div className="border rounded-2xl p-4 hover:bg-gray-50/50 transition-colors cursor-pointer"
+                               onClick={() => setSelectedModel('gemini-1.5-pro')}>
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
+                                <Google size={24} />
+                              </div>
+                              <div className="flex-1">
+                                <h4 className="font-semibold text-gray-900">Google Gemini</h4>
+                                <p className="text-sm text-gray-500">Google's advanced AI models</p>
+                              </div>
+                              {selectedModel.includes('gemini') && (
+                                <Check className="h-5 w-5 text-blue-600" />
+                              )}
                             </div>
-                          )}
+                          </div>
+
+                          {/* OpenAI Provider */}
+                          <div className="border rounded-2xl p-4 hover:bg-gray-50/50 transition-colors cursor-pointer"
+                               onClick={() => setSelectedModel('gpt-4o')}>
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-lg bg-gray-50 flex items-center justify-center">
+                                <OpenAI size={24} />
+                              </div>
+                              <div className="flex-1">
+                                <h4 className="font-semibold text-gray-900">OpenAI</h4>
+                                <p className="text-sm text-gray-500">ChatGPT and GPT models</p>
+                              </div>
+                              {selectedModel.includes('gpt') && (
+                                <Check className="h-5 w-5 text-gray-600" />
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Groq Provider */}
+                          <div className="border rounded-2xl p-4 hover:bg-gray-50/50 transition-colors cursor-pointer"
+                               onClick={() => setSelectedModel('llama-3.1-70b-versatile')}>
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-lg bg-orange-50 flex items-center justify-center">
+                                <Groq size={24} />
+                              </div>
+                              <div className="flex-1">
+                                <h4 className="font-semibold text-gray-900">Groq</h4>
+                                <p className="text-sm text-gray-500">Fast inference AI models</p>
+                              </div>
+                              {selectedModel.includes('llama') && (
+                                <Check className="h-5 w-5 text-orange-600" />
+                              )}
+                            </div>
+                          </div>
                         </div>
-                        <p className="text-sm text-muted-foreground">Choose your preferred AI model</p>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label htmlFor="api-key">API Key</Label>
-                        <Input 
-                          id="api-key" 
-                          type="password" 
-                          placeholder="Enter your API key" 
-                          value={apiKey}
-                          onChange={(e) => setApiKey(e.target.value)}
-                        />
-                        <p className="text-sm text-muted-foreground">Your API key for the selected AI service</p>
-                      </div>
-                      
-                      <div className="flex space-x-2">
-                        <Button 
-                          onClick={handleTestConnection}
-                          disabled={testStatus === "testing"}
-                          className={cn(
-                            "bg-black text-white rounded-2xl hover:bg-gray-800",
-                            testStatus === "success" && "bg-green-500 hover:bg-green-600 text-white",
-                            testStatus === "error" && "bg-red-500 hover:bg-red-600 text-white"
-                          )}
-                        >
-                          {testStatus === "testing" ? (
-                            <>
-                              <span className="mr-2 h-4 w-4 animate-spin">⏳</span>
-                              Testing...
-                            </>
-                          ) : testStatus === "success" ? (
-                            <>
-                              <Check className="mr-2 h-4 w-4" />
-                              Success
-                            </>
-                          ) : testStatus === "error" ? (
-                            <>
-                              <svg xmlns="http://www.w3.org/2000/svg" className="mr-2 h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <circle cx="12" cy="12" r="10"></circle>
-                                <line x1="15" y1="9" x2="9" y2="15"></line>
-                                <line x1="9" y1="9" x2="15" y2="15"></line>
-                              </svg>
-                              Failed
-                            </>
-                          ) : (
-                            "Test Connection"
-                          )}
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          onClick={() => {
-                            setApiKey("");
-                            setTestStatus("idle");
-                            setTestMessage("");
-                          }}
-                          className="bg-background/80 backdrop-blur-sm border border-border/50 rounded-2xl hover:bg-accent"
-                        >
-                          Clear Key
-                        </Button>
-                      </div>
-                      {testMessage && (
-                        <div className={cn(
-                          "text-sm p-2 rounded-lg",
-                          testStatus === "success" ? "bg-green-100 text-green-800" : 
-                          testStatus === "error" ? "bg-red-100 text-red-800" : "bg-blue-100 text-blue-800"
-                        )}>
-                          {testMessage}
                         </div>
-                      )}
+
+                        {/* Right Column - API Configuration */}
+                        <div className="space-y-4">
+                          <div>
+                            <Label className="text-base font-semibold">API Configuration</Label>
+                            <p className="text-sm text-muted-foreground">Configure your API key and test connection</p>
+                          </div>
+
+                          <div className="border rounded-2xl p-6 bg-gray-50/30">
+                            <div className="space-y-4">
+                              <div className="space-y-2">
+                                <Label htmlFor="api-key" className="font-medium">API Key</Label>
+                                <Input 
+                                  id="api-key" 
+                                  type="password" 
+                                  placeholder="Enter your API key" 
+                                  value={getCurrentApiKey()}
+                                  onChange={(e) => updateCurrentApiKey(e.target.value)}
+                                  className="rounded-xl border-gray-300"
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                  Your API key for {(() => {
+                                    if (selectedModel.includes('gemini')) return 'Google Gemini';
+                                    if (selectedModel.includes('gpt')) return 'OpenAI';
+                                    if (selectedModel.includes('llama')) return 'Groq';
+                                    return 'the selected AI service';
+                                  })()}
+                                </p>
+                              </div>
+                              
+                              <div className="flex flex-col space-y-2">
+                                <Button 
+                                  onClick={handleTestConnection}
+                                  disabled={testStatus === "testing"}
+                                  className={cn(
+                                    "w-full rounded-xl font-medium transition-all",
+                                    testStatus === "success" && "bg-green-500 hover:bg-green-600 text-white",
+                                    testStatus === "error" && "bg-red-500 hover:bg-red-600 text-white",
+                                    testStatus === "idle" && "bg-black hover:bg-gray-800 text-white"
+                                  )}
+                                >
+                                  {testStatus === "testing" ? (
+                                    <>
+                                      <span className="mr-2 h-4 w-4 animate-spin">⏳</span>
+                                      Testing Connection...
+                                    </>
+                                  ) : testStatus === "success" ? (
+                                    <>
+                                      <Check className="mr-2 h-4 w-4" />
+                                      Connection Successful
+                                    </>
+                                  ) : testStatus === "error" ? (
+                                    <>
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="mr-2 h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <circle cx="12" cy="12" r="10"></circle>
+                                        <line x1="15" y1="9" x2="9" y2="15"></line>
+                                        <line x1="9" y1="9" x2="15" y2="15"></line>
+                                      </svg>
+                                      Test Failed
+                                    </>
+                                  ) : (
+                                    <>
+                                      <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M9 12l2 2 4-4"/>
+                                        <path d="M21 12c-1 0-3-1-3-3s2-3 3-3 3 1 3 3-2 3-3 3"/>
+                                        <path d="M3 12c1 0 3-1-3-3s-2-3-3-3-3 1-3 3 2 3 3 3"/>
+                                        <path d="M3 12h6m6 0h6"/>
+                                      </svg>
+                                      Test Connection
+                                    </>
+                                  )}
+                                </Button>
+                                
+                                <Button 
+                                  variant="outline" 
+                                  onClick={() => {
+                                    updateCurrentApiKey("");
+                                    setTestStatus("idle");
+                                    setTestMessage("");
+                                  }}
+                                  className="w-full rounded-xl border-gray-300 hover:bg-gray-100"
+                                >
+                                  Clear API Key
+                                </Button>
+                              </div>
+
+                              {testMessage && (
+                                <div className={cn(
+                                  "text-sm p-3 rounded-xl font-medium",
+                                  testStatus === "success" ? "bg-green-100 text-green-800 border border-green-200" : 
+                                  testStatus === "error" ? "bg-red-100 text-red-800 border border-red-200" : 
+                                  "bg-blue-100 text-blue-800 border border-blue-200"
+                                )}>
+                                  {testMessage}
+                                </div>
+                              )}
+
+
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </CardContent>
                   </Card>
                 </TabsContent>

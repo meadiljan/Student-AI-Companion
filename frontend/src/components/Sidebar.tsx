@@ -15,6 +15,7 @@ import {
   Settings,
   BookOpenCheck,
   LogOut,
+  Sparkles,
 } from "lucide-react";
 
 interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -27,6 +28,11 @@ const navItems = [
     title: "Dashboard",
     href: "/",
     icon: LayoutDashboard,
+  },
+  {
+    title: "Assistant",
+    href: "/assistant",
+    icon: Sparkles,
   },
   {
     title: "Tasks",
